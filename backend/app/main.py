@@ -1,3 +1,5 @@
+import logging
+import logging.config
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -6,12 +8,44 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1.router import api_router
 from app.core.config import settings
 
+LOGGING_CONFIG = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "default": {
+            "format": "%(asctime)s %(levelname)-8s %(name)s — %(message)s",
+            "datefmt": "%Y-%m-%d %H:%M:%S",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "default",
+        },
+    },
+    "loggers": {
+        # Application logs
+        "app": {"level": "DEBUG", "handlers": ["console"], "propagate": False},
+        # SQLAlchemy: only warnings in production, INFO in development to see queries
+        "sqlalchemy.engine": {
+            "level": "INFO" if settings.DEBUG else "WARNING",
+            "handlers": ["console"],
+            "propagate": False,
+        },
+    },
+    "root": {"level": "INFO", "handlers": ["console"]},
+}
+
+logging.config.dictConfig(LOGGING_CONFIG)
+
+logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
+    logger.info("Starting %s [env=%s]", settings.APP_NAME, settings.ENVIRONMENT)
     yield
-    # Shutdown
+    logger.info("Shutting down %s", settings.APP_NAME)
 
 
 app = FastAPI(

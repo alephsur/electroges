@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuthStore } from "@/features/auth/store/auth-store";
 import { LoginPage } from "@/features/auth/components/LoginPage";
 import { AppLayout } from "@/shared/components/AppLayout";
+import { SuppliersPage } from "@/features/suppliers/components/SuppliersPage";
 
 // Placeholder page until each module is implemented
 const ComingSoon = ({ title }: { title: string }) => (
@@ -38,7 +39,7 @@ export default function App() {
         <Route path="obras/*" element={<ComingSoon title="Obras" />} />
         <Route path="facturacion/*" element={<ComingSoon title="Facturación" />} />
         <Route path="inventario/*" element={<ComingSoon title="Inventario" />} />
-        <Route path="proveedores/*" element={<ComingSoon title="Proveedores" />} />
+        <Route path="proveedores/*" element={<SuppliersPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

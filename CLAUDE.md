@@ -209,7 +209,7 @@ src/
 | Obras + Tasks + TaskMaterials | ⬜ Pendiente | Core del sistema |
 | Facturación | ⬜ Pendiente | |
 | Inventario | ⬜ Pendiente | |
-| Proveedores | ⬜ Pendiente | |
+| Proveedores | ✅ Completado | |
 | Dashboard | ⬜ Pendiente | |
 
 ### Fase 2 – Gestión de equipo
