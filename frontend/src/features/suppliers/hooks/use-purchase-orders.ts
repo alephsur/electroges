@@ -103,6 +103,8 @@ export function useReceivePurchaseOrder(supplierId: string) {
       queryClient.invalidateQueries({
         queryKey: purchaseOrderKeys.bySupplier(supplierId),
       });
+      // Invalidate inventory so stock updates are visible if user navigates there
+      queryClient.invalidateQueries({ queryKey: ["inventory"] });
     },
   });
 }

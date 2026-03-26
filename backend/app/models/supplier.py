@@ -11,6 +11,7 @@ from app.models.base import TimestampMixin, UUIDMixin
 if TYPE_CHECKING:
     from app.models.inventory_item import InventoryItem
     from app.models.purchase_order import PurchaseOrder
+    from app.models.supplier_item import SupplierItem
 
 
 class Supplier(UUIDMixin, TimestampMixin, Base):
@@ -33,4 +34,7 @@ class Supplier(UUIDMixin, TimestampMixin, Base):
     )
     purchase_orders: Mapped[list[PurchaseOrder]] = relationship(
         "PurchaseOrder", back_populates="supplier", order_by="PurchaseOrder.order_date.desc()"
+    )
+    supplier_items: Mapped[list[SupplierItem]] = relationship(
+        "SupplierItem", back_populates="supplier"
     )
