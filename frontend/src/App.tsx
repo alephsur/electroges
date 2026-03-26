@@ -4,6 +4,7 @@ import { LoginPage } from "@/features/auth/components/LoginPage";
 import { AppLayout } from "@/shared/components/AppLayout";
 import { SuppliersPage } from "@/features/suppliers/components/SuppliersPage";
 import { InventoryPage } from "@/features/inventory/components/InventoryPage";
+import { CustomersPage } from "@/features/customers/components/CustomersPage";
 
 // Placeholder page until each module is implemented
 const ComingSoon = ({ title }: { title: string }) => (
@@ -34,7 +35,7 @@ export default function App() {
       >
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<ComingSoon title="Dashboard" />} />
-        <Route path="clientes/*" element={<ComingSoon title="Clientes" />} />
+        <Route path="clientes/*" element={<CustomersPage />} />
         <Route path="visitas/*" element={<ComingSoon title="Visitas Técnicas" />} />
         <Route path="presupuestos/*" element={<ComingSoon title="Presupuestos" />} />
         <Route path="obras/*" element={<ComingSoon title="Obras" />} />
