@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useInventoryStore } from "@/features/inventory/store/inventory-store";
 import {
   ArrowLeft,
   Mail,
@@ -19,7 +20,7 @@ import {
   Clock,
 } from "lucide-react";
 import { useSupplier, useDeactivateSupplier } from "../hooks/use-suppliers";
-import { useSupplierInventoryItems } from "../hooks/use-supplier-inventory";
+import { useInventoryItems } from "@/features/inventory/hooks/use-inventory-items";
 import {
   usePurchaseOrders,
   useReceivePurchaseOrder,
@@ -50,7 +51,7 @@ export function SupplierDetail({ supplierId }: SupplierDetailProps) {
   const [confirmDeactivate, setConfirmDeactivate] = useState(false);
 
   const { data: supplier, isLoading, error } = useSupplier(supplierId);
-  const { data: itemsData } = useSupplierInventoryItems(supplierId);
+  const { data: itemsData } = useInventoryItems({ supplier_id: supplierId, limit: 200 });
   const { data: ordersData } = usePurchaseOrders(supplierId);
   const deactivateMutation = useDeactivateSupplier();
 
@@ -244,8 +245,15 @@ function MaterialesTab({
   supplierId: string;
   onNew: () => void;
 }) {
-  const { data, isLoading } = useSupplierInventoryItems(supplierId);
+  const { data, isLoading } = useInventoryItems({ supplier_id: supplierId, limit: 200 });
   const items = data?.items ?? [];
+  const navigate = useNavigate();
+  const setSelectedItemId = useInventoryStore((s) => s.setSelectedItemId);
+
+  const handleItemDetail = (itemId: string) => {
+    setSelectedItemId(itemId);
+    navigate("/inventario");
+  };
 
   return (
     <div>
@@ -275,10 +283,12 @@ function MaterialesTab({
               <tr className="border-b border-gray-100 text-left text-xs font-medium text-gray-400 uppercase tracking-wide">
                 <th className="px-4 py-3">Nombre</th>
                 <th className="px-4 py-3">Unidad</th>
-                <th className="px-4 py-3 text-right">Coste</th>
-                <th className="px-4 py-3 text-right">Precio</th>
+                <th className="px-4 py-3 text-right">Coste proveedor</th>
+                <th className="px-4 py-3 text-right">P. coste medio (PMP)</th>
+                <th className="px-4 py-3 text-right">Precio venta</th>
                 <th className="px-4 py-3 text-right">Stock</th>
                 <th className="px-4 py-3 text-right">Stock mín.</th>
+                <th className="px-4 py-3" />
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -287,7 +297,10 @@ function MaterialesTab({
                   <td className="px-4 py-3 font-medium text-gray-900">{item.name}</td>
                   <td className="px-4 py-3 text-gray-500">{item.unit}</td>
                   <td className="px-4 py-3 text-right text-gray-700">
-                    {Number(item.unit_cost).toFixed(2)} €
+                    {Number(item.unit_cost).toFixed(4)} €
+                  </td>
+                  <td className="px-4 py-3 text-right text-gray-500 text-xs font-mono">
+                    {Number((item as any).unit_cost_avg ?? 0).toFixed(4)} €
                   </td>
                   <td className="px-4 py-3 text-right text-gray-700">
                     {Number(item.unit_price).toFixed(2)} €
@@ -304,6 +317,14 @@ function MaterialesTab({
                   </td>
                   <td className="px-4 py-3 text-right text-gray-500">
                     {Number(item.stock_min).toFixed(3)}
+                  </td>
+                  <td className="px-4 py-3">
+                    <button
+                      onClick={() => handleItemDetail(item.id)}
+                      className="text-xs text-brand-600 hover:text-brand-800 hover:underline whitespace-nowrap"
+                    >
+                      Ver detalle →
+                    </button>
                   </td>
                 </tr>
               ))}

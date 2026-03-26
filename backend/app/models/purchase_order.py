@@ -15,6 +15,7 @@ from app.models.base import TimestampMixin, UUIDMixin
 if TYPE_CHECKING:
     from app.models.inventory_item import InventoryItem
     from app.models.supplier import Supplier
+    from app.models.supplier_item import SupplierItem
 
 
 class PurchaseOrder(UUIDMixin, TimestampMixin, Base):
@@ -57,5 +58,11 @@ class PurchaseOrderLine(UUIDMixin, TimestampMixin, Base):
     unit_cost: Mapped[Decimal] = mapped_column(Numeric(10, 4), nullable=False)
     subtotal: Mapped[Decimal] = mapped_column(Numeric(12, 4), nullable=False)
 
+    # Links this line to a specific supplier price for traceability (nullable for legacy orders)
+    supplier_item_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("supplier_items.id"), nullable=True
+    )
+
     purchase_order: Mapped[PurchaseOrder] = relationship("PurchaseOrder", back_populates="lines")
     inventory_item: Mapped[InventoryItem | None] = relationship("InventoryItem")
+    supplier_item: Mapped[SupplierItem | None] = relationship("SupplierItem")

@@ -4,7 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
 
-from app.schemas.inventory_item import InventoryItemResponse
+from app.schemas.inventory_item import InventoryItemBrief
 
 
 class PurchaseOrderLineCreate(BaseModel):
@@ -43,7 +43,7 @@ class PurchaseOrderLineResponse(BaseModel):
     quantity: Decimal
     unit_cost: Decimal
     subtotal: Decimal
-    inventory_item: InventoryItemResponse | None = None
+    inventory_item: InventoryItemBrief | None = None
     created_at: datetime
     updated_at: datetime
 

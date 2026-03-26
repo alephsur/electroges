@@ -9,8 +9,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.inventory_item import InventoryItem
 from app.models.purchase_order import PurchaseOrder, PurchaseOrderLine
+from app.models.stock_movement import StockMovement
 from app.repositories.inventory_item import InventoryItemRepository
 from app.repositories.purchase_order import PurchaseOrderRepository
+from app.repositories.stock_movement import StockMovementRepository
+from app.repositories.supplier_item import SupplierItemRepository
 from app.schemas.purchase_order import (
     PurchaseOrderCreate,
     PurchaseOrderListResponse,
@@ -26,6 +29,8 @@ class PurchaseOrderService:
     def __init__(self, session: AsyncSession):
         self._repo = PurchaseOrderRepository(session)
         self._item_repo = InventoryItemRepository(session)
+        self._movement_repo = StockMovementRepository(session)
+        self._supplier_item_repo = SupplierItemRepository(session)
         self._session = session
 
     async def list_by_supplier(
@@ -129,11 +134,8 @@ class PurchaseOrderService:
         return PurchaseOrderResponse.model_validate(result)
 
     async def receive_order(self, order_id: uuid.UUID) -> PurchaseOrderResponse:
-        """
-        Mark order as received and increment stock_current for each line
-        that references an InventoryItem.
-        """
-        from datetime import date
+        """Mark order as received, create StockMovements and update PMP for each line."""
+        from datetime import date as date_type
 
         order = await self._repo.get_with_lines(order_id)
         if not order:
@@ -149,29 +151,68 @@ class PurchaseOrderService:
 
         logger.info("purchase_order.receiving id=%s lines=%d", order_id, len(order.lines))
 
+        today = date_type.today()
+
         for line in order.lines:
             if line.inventory_item_id is None:
                 continue
+
             item = await self._item_repo.get_by_id(line.inventory_item_id)
             if item is None:
                 logger.warning(
-                    "receive_order: inventory_item_id=%s not found, skipping stock increment",
+                    "receive_order: inventory_item_id=%s not found, skipping",
                     line.inventory_item_id,
                 )
                 continue
-            new_stock = item.stock_current + line.quantity
-            await self._item_repo.update(item, {"stock_current": new_stock})
-            logger.debug(
-                "stock_updated item_id=%s old=%.3f qty=%.3f new=%.3f",
-                item.id,
-                item.stock_current,
-                line.quantity,
-                new_stock,
+
+            # 1. Persist the StockMovement first (must be flushed before PMP calc)
+            movement = StockMovement(
+                inventory_item_id=line.inventory_item_id,
+                movement_type="entry",
+                quantity=line.quantity,
+                unit_cost=line.unit_cost,
+                reference_type="purchase_order",
+                reference_id=order.id,
             )
+            await self._movement_repo.create(movement)
+
+            # 2. Calculate PMP now that the movement is in the session
+            new_pmp = await self._movement_repo.calculate_pmp(line.inventory_item_id)
+
+            # 3. Atomic stock + PMP update
+            await self._item_repo.update_stock_and_pmp(
+                line.inventory_item_id, line.quantity, new_pmp
+            )
+            logger.debug(
+                "stock_entry item_id=%s qty=%.3f new_pmp=%.4f",
+                item.id,
+                line.quantity,
+                new_pmp,
+            )
+
+            # 4. Update SupplierItem pricing (prefer explicit link, fall back to supplier lookup)
+            supplier_item = None
+            if line.supplier_item_id is not None:
+                supplier_item = await self._supplier_item_repo.get_by_id(
+                    line.supplier_item_id
+                )
+            if supplier_item is None:
+                supplier_item = await self._supplier_item_repo.get_by_supplier_and_item(
+                    order.supplier_id, line.inventory_item_id
+                )
+            if supplier_item is not None:
+                await self._supplier_item_repo.update(
+                    supplier_item,
+                    {
+                        "last_purchase_cost": line.unit_cost,
+                        "last_purchase_date": today,
+                        "unit_cost": line.unit_cost,
+                    },
+                )
 
         await self._repo.update(
             order,
-            {"status": "received", "received_date": date.today()},
+            {"status": "received", "received_date": today},
         )
         await self._session.commit()
         logger.info("purchase_order.received id=%s", order_id)
