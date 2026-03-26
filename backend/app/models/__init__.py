@@ -10,8 +10,11 @@ from app.models.purchase_order import PurchaseOrder, PurchaseOrderLine  # noqa: 
 
 from app.models.customer import Customer, CustomerAddress, CustomerDocument  # noqa: F401
 
+from app.models.site_visit import (  # noqa: F401
+    SiteVisit, SiteVisitMaterial, SiteVisitPhoto, SiteVisitDocument
+)
+
 # Phase 1 — added as each module is implemented
-# from app.models.site_visit import SiteVisit, SiteVisitMaterial, SiteVisitDocument
 # from app.models.budget import Budget, BudgetLine
 # from app.models.work_order import WorkOrder, Task, TaskMaterial
 # from app.models.invoice import Invoice
