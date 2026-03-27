@@ -363,8 +363,25 @@ class CustomerService:
         )
 
     async def _get_site_visit_events(self, customer_id: uuid.UUID) -> list[TimelineEvent]:
-        # TODO: implement when SiteVisit module exists
-        return []
+        from app.repositories.site_visit import SiteVisitRepository
+        visit_repo = SiteVisitRepository(self._session)
+        visits = await visit_repo.get_by_customer(customer_id, skip=0, limit=100)
+        events = []
+        for v in visits:
+            events.append(TimelineEvent(
+                event_type="site_visit",
+                event_date=v.visit_date,
+                title=f"Visita técnica — {v.address_text or 'Sin dirección'}",
+                subtitle="Estado: " + v.status.value + (
+                    f" · Presupuesto orientativo: {v.estimated_budget}€"
+                    if v.estimated_budget else ""
+                ),
+                reference_id=v.id,
+                reference_type="site_visit",
+                amount=v.estimated_budget,
+                status=v.status.value,
+            ))
+        return events
 
     async def _get_work_order_events(self, customer_id: uuid.UUID) -> list[TimelineEvent]:
         # TODO: implement when WorkOrder module exists

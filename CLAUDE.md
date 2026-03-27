@@ -204,7 +204,7 @@ src/
 | Módulo | Estado | Notas |
 |---|---|---|
 | Clientes | ⬜ Pendiente | |
-| Visitas Técnicas | ⬜ Pendiente | |
+| Visitas Técnicas | ✅ Completado | |
 | Presupuestos | ⬜ Pendiente | Incluye versiones y margen interno |
 | Obras + Tasks + TaskMaterials | ⬜ Pendiente | Core del sistema |
 | Facturación | ⬜ Pendiente | |

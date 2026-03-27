@@ -53,10 +53,10 @@ class Customer(UUIDMixin, TimestampMixin, Base):
         cascade="all, delete-orphan",
         order_by="CustomerDocument.created_at.desc()",
     )
-    # TODO: add these relationships when SiteVisit and WorkOrder modules are implemented.
-    # SQLAlchemy resolves string-based forward references at mapper init time, so they
-    # cannot be declared here before those models exist in the registry.
-    # site_visits: Mapped[list["SiteVisit"]] = relationship(back_populates="customer")
+    site_visits: Mapped[list["SiteVisit"]] = relationship(
+        back_populates="customer",
+        order_by="SiteVisit.visit_date.desc()",
+    )
     # work_orders: Mapped[list["WorkOrder"]] = relationship(back_populates="customer")
 
 
