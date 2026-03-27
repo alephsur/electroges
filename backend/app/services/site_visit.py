@@ -481,6 +481,7 @@ class SiteVisitService:
             documents=[
                 SiteVisitDocumentResponse.model_validate(d) for d in visit.documents
             ],
+            materials_count=len(materials),
             budgets_count=0,
             created_at=visit.created_at,
             updated_at=visit.updated_at,

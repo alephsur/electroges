@@ -180,6 +180,7 @@ class SiteVisitResponse(BaseModel):
     materials: list[SiteVisitMaterialResponse] = []
     photos: list[SiteVisitPhotoResponse] = []
     documents: list[SiteVisitDocumentResponse] = []
+    materials_count: int = 0
     budgets_count: int = 0
     created_at: datetime
     updated_at: datetime
