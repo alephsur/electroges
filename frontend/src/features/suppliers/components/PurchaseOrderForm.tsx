@@ -3,7 +3,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Plus, Trash2, X } from "lucide-react";
 import { useCreatePurchaseOrder } from "../hooks/use-purchase-orders";
-import { useSupplierInventoryItems } from "../hooks/use-supplier-inventory";
+import { useInventoryItems } from "@/features/inventory/hooks/use-inventory-items";
 import { getApiErrorMessage } from "@/shared/hooks/use-api-error";
 import { cn } from "@/shared/utils/cn";
 
@@ -39,7 +39,7 @@ interface PurchaseOrderFormProps {
 
 export function PurchaseOrderForm({ supplierId, onClose }: PurchaseOrderFormProps) {
   const createMutation = useCreatePurchaseOrder(supplierId);
-  const { data: itemsData } = useSupplierInventoryItems(supplierId, { is_active: true });
+  const { data: itemsData } = useInventoryItems({ supplier_id: supplierId, limit: 200 });
   const items = itemsData?.items ?? [];
 
   const {
