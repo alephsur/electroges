@@ -1,19 +1,25 @@
+import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { useInventoryItems } from '@/features/inventory/hooks/use-inventory-items'
 import type { SiteVisitMaterialCreatePayload } from '../types'
 
 const schema = z
   .object({
+    inventory_item_id: z.string().optional().nullable(),
     description: z.string().optional().nullable(),
     estimated_qty: z.coerce.number().positive('La cantidad debe ser mayor a 0'),
     unit: z.string().optional().nullable(),
     unit_cost: z.coerce.number().nonnegative().optional().nullable(),
   })
-  .refine((d) => !!d.description, {
-    message: 'Debes indicar una descripción del material',
-    path: ['description'],
-  })
+  .refine(
+    (d) => !!d.inventory_item_id || !!d.description,
+    {
+      message: 'Selecciona un material del inventario o escribe una descripción',
+      path: ['description'],
+    }
+  )
 
 type FormValues = z.infer<typeof schema>
 
@@ -28,14 +34,31 @@ export function SiteVisitMaterialForm({
   onCancel,
   isLoading,
 }: SiteVisitMaterialFormProps) {
+  const { data: inventoryData } = useInventoryItems({ limit: 200 })
+  const inventoryItems = inventoryData?.items ?? []
+
   const {
     register,
     handleSubmit,
+    watch,
+    setValue,
     formState: { errors },
   } = useForm<FormValues>({ resolver: zodResolver(schema) })
 
+  const selectedItemId = watch('inventory_item_id')
+
+  useEffect(() => {
+    if (!selectedItemId) return
+    const item = inventoryItems.find((i) => i.id === selectedItemId)
+    if (!item) return
+    setValue('description', item.name)
+    setValue('unit', item.unit)
+    setValue('unit_cost', Number(item.unit_cost_avg ?? item.unit_cost ?? 0) || null)
+  }, [selectedItemId, inventoryItems, setValue])
+
   const handleFormSubmit = (values: FormValues) => {
     onSubmit({
+      inventory_item_id: values.inventory_item_id || null,
       description: values.description || null,
       estimated_qty: values.estimated_qty,
       unit: values.unit || null,
@@ -45,9 +68,32 @@ export function SiteVisitMaterialForm({
 
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
+      {/* Inventory selector */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          Descripción del material <span className="text-red-500">*</span>
+          Material del inventario
+        </label>
+        <select
+          {...register('inventory_item_id')}
+          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="">— Seleccionar del inventario (opcional) —</option>
+          {inventoryItems.map((item) => {
+            const displayCost = Number(item.unit_cost_avg ?? item.unit_cost ?? 0).toFixed(4)
+            return (
+              <option key={item.id} value={item.id}>
+                {item.name} ({item.unit}) — {displayCost} €/ud
+              </option>
+            )
+          })}
+        </select>
+      </div>
+
+      {/* Description */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Descripción del material{' '}
+          {!selectedItemId && <span className="text-red-500">*</span>}
         </label>
         <input
           {...register('description')}
@@ -60,6 +106,7 @@ export function SiteVisitMaterialForm({
         )}
       </div>
 
+      {/* Qty / Unit / Price */}
       <div className="grid grid-cols-3 gap-3">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
