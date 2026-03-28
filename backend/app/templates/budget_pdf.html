@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<style>
+  /* Reset and base */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Helvetica Neue', Arial, sans-serif; font-size: 10pt;
+         color: #1a1a1a; line-height: 1.4; }
+
+  /* Page */
+  @page { size: A4; margin: 15mm 15mm 20mm 15mm; }
+  @page { @bottom-center { content: "Página " counter(page) " de " counter(pages);
+                             font-size: 8pt; color: #888; } }
+
+  /* Company header */
+  .header { display: flex; justify-content: space-between;
+            align-items: flex-start; padding-bottom: 12pt;
+            border-bottom: 2pt solid #1a56db; margin-bottom: 16pt; }
+  .company-logo { max-height: 50pt; max-width: 120pt; }
+  .company-info { text-align: right; font-size: 9pt; color: #444; }
+  .company-name { font-size: 13pt; font-weight: bold; color: #1a1a1a; }
+
+  /* Document meta */
+  .doc-meta { display: flex; justify-content: space-between; margin-bottom: 16pt; }
+  .doc-title { font-size: 18pt; font-weight: bold; color: #1a56db; }
+  .doc-number { font-size: 11pt; color: #444; margin-top: 4pt; }
+  .doc-dates { text-align: right; font-size: 9pt; color: #444; }
+
+  /* Client block */
+  .client-block { background: #f8f9fa; border-left: 3pt solid #1a56db;
+                  padding: 8pt 10pt; margin-bottom: 16pt; }
+  .client-label { font-size: 8pt; text-transform: uppercase;
+                  color: #888; margin-bottom: 3pt; }
+  .client-name { font-size: 11pt; font-weight: bold; }
+
+  /* Lines table */
+  table { width: 100%; border-collapse: collapse; margin-bottom: 12pt;
+          font-size: 9pt; }
+  thead tr { background: #1a56db; color: white; }
+  thead th { padding: 6pt 8pt; text-align: left; font-weight: 600; }
+  thead th:last-child, thead th:nth-last-child(2),
+  thead th:nth-last-child(3) { text-align: right; }
+  tbody tr { border-bottom: 0.5pt solid #e5e7eb; }
+  tbody tr:nth-child(even) { background: #f9fafb; }
+  tbody td { padding: 5pt 8pt; vertical-align: top; }
+  tbody td:last-child, tbody td:nth-last-child(2),
+  tbody td:nth-last-child(3) { text-align: right; }
+
+  /* Line type badge */
+  .type-badge { font-size: 7pt; padding: 1pt 4pt; border-radius: 3pt;
+                display: inline-block; margin-bottom: 2pt; }
+  .type-labor { background: #dbeafe; color: #1e40af; }
+  .type-material { background: #d1fae5; color: #065f46; }
+  .type-other { background: #f3f4f6; color: #374151; }
+
+  /* Totals */
+  .totals-block { margin-left: auto; width: 220pt; margin-bottom: 16pt; }
+  .totals-row { display: flex; justify-content: space-between;
+                padding: 3pt 0; font-size: 9pt; }
+  .totals-row.discount { color: #dc2626; }
+  .totals-divider { border-top: 0.5pt solid #d1d5db; margin: 4pt 0; }
+  .totals-row.total { font-size: 12pt; font-weight: bold;
+                      border-top: 2pt solid #1a56db; padding-top: 6pt; }
+
+  /* Client notes */
+  .client-notes { background: #fffbeb; border: 0.5pt solid #fcd34d;
+                  padding: 8pt; margin-bottom: 16pt; font-size: 9pt; }
+
+  /* Payment info */
+  .payment-block { background: #f0f9ff; border: 0.5pt solid #bae6fd;
+                   padding: 8pt; margin-bottom: 20pt; font-size: 9pt; }
+  .payment-label { font-weight: bold; margin-bottom: 3pt; }
+
+  /* Footer with general conditions */
+  .footer { border-top: 0.5pt solid #d1d5db; padding-top: 8pt;
+            font-size: 7.5pt; color: #6b7280; margin-top: auto; }
+  .footer-title { font-weight: bold; margin-bottom: 4pt;
+                  text-transform: uppercase; font-size: 8pt; }
+
+  /* Signature */
+  .signature-block { display: flex; justify-content: space-between;
+                     margin-top: 24pt; margin-bottom: 16pt; }
+  .signature-box { width: 45%; border-top: 0.5pt solid #9ca3af;
+                   padding-top: 4pt; font-size: 8pt; color: #6b7280; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div>
+    {% if company.logo_path %}
+      <img src="file://{{ logo_abs_path }}" class="company-logo" alt="Logo">
+    {% else %}
+      <div class="company-name">{{ company.company_name }}</div>
+    {% endif %}
+  </div>
+  <div class="company-info">
+    <div class="company-name">{{ company.company_name }}</div>
+    {% if company.tax_id %}<div>CIF: {{ company.tax_id }}</div>{% endif %}
+    {% if company.address %}<div>{{ company.address }}</div>{% endif %}
+    {% if company.city %}<div>{{ company.postal_code }} {{ company.city }}</div>{% endif %}
+    {% if company.phone %}<div>Tel: {{ company.phone }}</div>{% endif %}
+    {% if company.email %}<div>{{ company.email }}</div>{% endif %}
+  </div>
+</div>
+
+<!-- DOCUMENT META -->
+<div class="doc-meta">
+  <div>
+    <div class="doc-title">PRESUPUESTO</div>
+    <div class="doc-number">{{ budget.budget_number }}
+      {% if budget.version > 1 %} · Versión {{ budget.version }}{% endif %}
+    </div>
+  </div>
+  <div class="doc-dates">
+    <div><strong>Fecha emisión:</strong> {{ budget.issue_date | date }}</div>
+    <div><strong>Válido hasta:</strong> {{ budget.valid_until | date }}</div>
+  </div>
+</div>
+
+<!-- CLIENT BLOCK -->
+<div class="client-block">
+  <div class="client-label">Presupuesto para</div>
+  <div class="client-name">{{ customer.name }}</div>
+  {% if customer.tax_id %}<div>{{ customer.tax_id }}</div>{% endif %}
+  {% if address %}<div>{{ address }}</div>{% endif %}
+  {% if customer.email %}<div>{{ customer.email }}</div>{% endif %}
+</div>
+
+<!-- LINES TABLE — no internal costs exposed -->
+<table>
+  <thead>
+    <tr>
+      <th style="width:45%">Descripción</th>
+      <th style="width:10%; text-align:center">Cant.</th>
+      <th style="width:8%; text-align:center">Ud.</th>
+      <th style="width:14%; text-align:right">P. unitario</th>
+      {% if has_line_discounts %}
+        <th style="width:8%; text-align:right">Dto.</th>
+      {% endif %}
+      <th style="width:15%; text-align:right">Importe</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for line in lines %}
+    <tr>
+      <td>
+        <span class="type-badge type-{{ line.line_type }}">
+          {% if line.line_type == 'labor' %}Mano de obra
+          {% elif line.line_type == 'material' %}Material
+          {% else %}Partida{% endif %}
+        </span><br>
+        {{ line.description }}
+      </td>
+      <td style="text-align:center">{{ line.quantity | number }}</td>
+      <td style="text-align:center">{{ line.unit or '' }}</td>
+      <td style="text-align:right">{{ line.unit_price | currency }}</td>
+      {% if has_line_discounts %}
+        <td style="text-align:right">
+          {% if line.line_discount_pct > 0 %}{{ line.line_discount_pct }}%{% endif %}
+        </td>
+      {% endif %}
+      <td style="text-align:right">{{ line.subtotal | currency }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<!-- TOTALS -->
+<div class="totals-block">
+  <div class="totals-row">
+    <span>Subtotal</span>
+    <span>{{ totals.subtotal_before_discount | currency }}</span>
+  </div>
+  {% if budget.discount_pct > 0 %}
+  <div class="totals-row discount">
+    <span>Descuento ({{ budget.discount_pct }}%)</span>
+    <span>-{{ totals.discount_amount | currency }}</span>
+  </div>
+  {% endif %}
+  <div class="totals-divider"></div>
+  <div class="totals-row">
+    <span>Base imponible</span>
+    <span>{{ totals.taxable_base | currency }}</span>
+  </div>
+  <div class="totals-row">
+    <span>IVA ({{ budget.tax_rate }}%)</span>
+    <span>{{ totals.tax_amount | currency }}</span>
+  </div>
+  <div class="totals-row total">
+    <span>TOTAL</span>
+    <span>{{ totals.total | currency }}</span>
+  </div>
+</div>
+
+<!-- CLIENT NOTES -->
+{% if budget.client_notes %}
+<div class="client-notes">
+  <strong>Observaciones:</strong><br>
+  {{ budget.client_notes }}
+</div>
+{% endif %}
+
+<!-- PAYMENT INFO -->
+{% if company.bank_account %}
+<div class="payment-block">
+  <div class="payment-label">Datos para el pago</div>
+  <div>IBAN: {{ company.bank_account }}</div>
+  <div>Beneficiario: {{ company.company_name }}</div>
+  <div style="margin-top:4pt; font-style:italic">
+    Indicar el número de presupuesto como concepto: {{ budget.budget_number }}
+  </div>
+</div>
+{% endif %}
+
+<!-- SIGNATURE BLOCK -->
+<div class="signature-block">
+  <div class="signature-box">
+    <div>Firma del cliente</div>
+    <div style="margin-top:2pt">Nombre y DNI: ______________________</div>
+    <div style="margin-top:2pt">Fecha: ____________________________</div>
+    <div style="margin-top:2pt">Conforme: _________________________</div>
+  </div>
+  <div class="signature-box" style="text-align:right">
+    <div>{{ company.company_name }}</div>
+    {% if company.tax_id %}<div>CIF: {{ company.tax_id }}</div>{% endif %}
+    <div style="margin-top:2pt">Firma: ____________________________</div>
+  </div>
+</div>
+
+<!-- FOOTER — GENERAL CONDITIONS -->
+{% if company.general_conditions %}
+<div class="footer">
+  <div class="footer-title">Condiciones generales</div>
+  {{ company.general_conditions }}
+</div>
+{% endif %}
+
+</body>
+</html>

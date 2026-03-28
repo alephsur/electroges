@@ -57,6 +57,10 @@ class Customer(UUIDMixin, TimestampMixin, Base):
         back_populates="customer",
         order_by="SiteVisit.visit_date.desc()",
     )
+    budgets: Mapped[list["Budget"]] = relationship(
+        back_populates="customer",
+        order_by="Budget.issue_date.desc()",
+    )
     # work_orders: Mapped[list["WorkOrder"]] = relationship(back_populates="customer")
 
 

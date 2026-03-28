@@ -205,7 +205,7 @@ src/
 |---|---|---|
 | Clientes | ⬜ Pendiente | |
 | Visitas Técnicas | ✅ Completado | |
-| Presupuestos | ⬜ Pendiente | Incluye versiones y margen interno |
+| Presupuestos | ✅ Completado | Incluye versiones y margen interno |
 | Obras + Tasks + TaskMaterials | ⬜ Pendiente | Core del sistema |
 | Facturación | ⬜ Pendiente | |
 | Inventario | ⬜ Pendiente | |
