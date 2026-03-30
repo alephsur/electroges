@@ -96,7 +96,9 @@ class SiteVisitService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Visita técnica no encontrada",
             )
-        return self._build_response(visit)
+        from app.repositories.budget import BudgetRepository
+        budgets_count = await BudgetRepository(self._session).count_by_visit(visit_id)
+        return self._build_response(visit, budgets_count=budgets_count)
 
     # ── CRUD ──────────────────────────────────────────────────────────────────
 
@@ -454,7 +456,7 @@ class SiteVisitService:
             created_at=visit.created_at,
         )
 
-    def _build_response(self, visit: SiteVisit) -> SiteVisitResponse:
+    def _build_response(self, visit: SiteVisit, budgets_count: int = 0) -> SiteVisitResponse:
         materials = [self._build_material_response(m) for m in visit.materials]
         return SiteVisitResponse(
             id=visit.id,
@@ -482,7 +484,7 @@ class SiteVisitService:
                 SiteVisitDocumentResponse.model_validate(d) for d in visit.documents
             ],
             materials_count=len(materials),
-            budgets_count=0,
+            budgets_count=budgets_count,
             created_at=visit.created_at,
             updated_at=visit.updated_at,
         )

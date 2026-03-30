@@ -78,11 +78,10 @@ class SiteVisit(UUIDMixin, TimestampMixin, Base):
         cascade="all, delete-orphan",
         order_by="SiteVisitDocument.created_at",
     )
-    # TODO: add when Budget module is implemented
-    # budgets: Mapped[list["Budget"]] = relationship(
-    #     back_populates="site_visit",
-    #     order_by="Budget.created_at.desc()",
-    # )
+    budgets: Mapped[list["Budget"]] = relationship(
+        back_populates="site_visit",
+        order_by="Budget.issue_date.desc()",
+    )
 
 
 class SiteVisitMaterial(UUIDMixin, TimestampMixin, Base):

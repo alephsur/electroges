@@ -14,7 +14,9 @@ from app.models.site_visit import (  # noqa: F401
     SiteVisit, SiteVisitMaterial, SiteVisitPhoto, SiteVisitDocument
 )
 
-# Phase 1 — added as each module is implemented
-# from app.models.budget import Budget, BudgetLine
+from app.models.company_settings import CompanySettings  # noqa: F401
+from app.models.budget import Budget, BudgetLine  # noqa: F401
+
+# Phase 1 — to be added as each module is implemented
 # from app.models.work_order import WorkOrder, Task, TaskMaterial
 # from app.models.invoice import Invoice

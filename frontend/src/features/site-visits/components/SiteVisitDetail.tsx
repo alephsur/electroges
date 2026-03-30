@@ -11,6 +11,7 @@ import { SiteVisitMaterialList } from './SiteVisitMaterialList'
 import { SiteVisitPhotoGallery } from './SiteVisitPhotoGallery'
 import { SiteVisitDocumentList } from './SiteVisitDocumentList'
 import { LinkCustomerModal } from './LinkCustomerModal'
+import { BudgetFromVisitForm } from '@/features/budgets/components/BudgetFromVisitForm'
 
 const infoSchema = z.object({
   description: z.string().optional().nullable(),
@@ -30,6 +31,7 @@ interface SiteVisitDetailProps {
 export function SiteVisitDetail({ visit }: SiteVisitDetailProps) {
   const { activeTab, setActiveTab } = useSiteVisitStore()
   const [showLinkModal, setShowLinkModal] = useState(false)
+  const [showBudgetForm, setShowBudgetForm] = useState(false)
   const updateVisit = useUpdateSiteVisit()
   const updateStatus = useUpdateSiteVisitStatus()
 
@@ -170,11 +172,10 @@ export function SiteVisitDetail({ visit }: SiteVisitDetailProps) {
           )}
           {visit.status === 'completed' && (
             <button
-              disabled
-              title="El módulo de presupuestos está en desarrollo"
-              className="cursor-not-allowed rounded-md bg-gray-100 px-3 py-1.5 text-xs text-gray-400"
+              onClick={() => setShowBudgetForm(true)}
+              className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
             >
-              Crear presupuesto (próximamente)
+              Crear presupuesto
             </button>
           )}
           {visit.status === 'no_show' && (
@@ -309,6 +310,12 @@ export function SiteVisitDetail({ visit }: SiteVisitDetailProps) {
 
       {showLinkModal && (
         <LinkCustomerModal visit={visit} onClose={() => setShowLinkModal(false)} />
+      )}
+      {showBudgetForm && (
+        <BudgetFromVisitForm
+          initialVisitId={visit.id}
+          onClose={() => setShowBudgetForm(false)}
+        />
       )}
     </div>
   )

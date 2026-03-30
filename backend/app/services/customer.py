@@ -291,7 +291,8 @@ class CustomerService:
         await self._assert_customer_exists(customer_id)
 
         events: list[TimelineEvent] = []
-        events += await self._get_site_visit_events(customer_id)   # TODO: SiteVisit module
+        events += await self._get_site_visit_events(customer_id)
+        events += await self._get_budget_events(customer_id)
         events += await self._get_work_order_events(customer_id)   # TODO: WorkOrder module
         events += await self._get_invoice_events(customer_id)      # TODO: Invoice module
 
@@ -381,6 +382,33 @@ class CustomerService:
                 amount=v.estimated_budget,
                 status=v.status.value,
             ))
+        return events
+
+    async def _get_budget_events(self, customer_id: uuid.UUID) -> list[TimelineEvent]:
+        from datetime import datetime as dt, timezone
+
+        from app.repositories.budget import BudgetRepository
+        from app.services.budget import BudgetService
+
+        budget_repo = BudgetRepository(self._session)
+        budgets = await budget_repo.get_by_customer(customer_id, latest_only=True)
+        svc = BudgetService(self._session)
+        events = []
+        for b in budgets:
+            effective_status = svc._get_effective_status(b)
+            totals = svc._calculate_totals(b)
+            events.append(
+                TimelineEvent(
+                    event_type="budget_created",
+                    event_date=dt.combine(b.issue_date, dt.min.time(), tzinfo=timezone.utc),
+                    title=f"Presupuesto {b.budget_number}",
+                    subtitle=f"Estado: {effective_status} · Total: {totals.total:.2f}€",
+                    reference_id=b.id,
+                    reference_type="budget",
+                    amount=totals.total,
+                    status=effective_status,
+                )
+            )
         return events
 
     async def _get_work_order_events(self, customer_id: uuid.UUID) -> list[TimelineEvent]:
