@@ -41,6 +41,9 @@ class PurchaseOrder(UUIDMixin, TimestampMixin, Base):
         cascade="all, delete-orphan",
         order_by="PurchaseOrderLine.created_at",
     )
+    work_order_links: Mapped[list["WorkOrderPurchaseOrder"]] = relationship(
+        back_populates="purchase_order",
+    )
 
 
 class PurchaseOrderLine(UUIDMixin, TimestampMixin, Base):

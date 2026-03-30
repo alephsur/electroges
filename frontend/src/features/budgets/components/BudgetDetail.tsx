@@ -1,7 +1,9 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { FileText, Layers, BarChart2, Download, Send, X, GitBranch, CheckCircle } from 'lucide-react'
 import type { Budget } from '../types'
 import { useBudgetStore } from '../store/budget-store'
+import { useWorkOrderStore } from '@/features/work-orders/store/work-order-store'
 import {
   useAcceptBudget,
   useCreateNewVersion,
@@ -24,6 +26,8 @@ interface BudgetDetailProps {
 export function BudgetDetail({ budget }: BudgetDetailProps) {
   const { activeTab, setActiveTab } = useBudgetStore()
   const [showPreviewModal, setShowPreviewModal] = useState(false)
+  const navigate = useNavigate()
+  const { setSelectedWorkOrderId } = useWorkOrderStore()
 
   const sendBudget = useSendBudget()
   const rejectBudget = useRejectBudget()
@@ -54,7 +58,13 @@ export function BudgetDetail({ budget }: BudgetDetailProps) {
 
   const handleConfirmAccept = () => {
     acceptBudget.mutate(budget.id, {
-      onSuccess: () => setShowPreviewModal(false),
+      onSuccess: (data) => {
+        setShowPreviewModal(false)
+        if (data?.work_order_id) {
+          setSelectedWorkOrderId(data.work_order_id)
+          navigate('/obras')
+        }
+      },
     })
   }
 

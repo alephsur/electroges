@@ -3,7 +3,7 @@
 import uuid
 from decimal import Decimal
 
-from sqlalchemy import func, select, update
+from sqlalchemy import exists, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -25,9 +25,19 @@ class InventoryItemRepository(BaseRepository[InventoryItem]):
         skip: int = 0,
         limit: int = 100,
     ) -> tuple[list[InventoryItem], int]:
-        """Items linked to a specific supplier via the legacy supplier_id column.
-        Used by the suppliers module (Materiales tab) for backward compatibility."""
-        query = select(InventoryItem).where(InventoryItem.supplier_id == supplier_id)
+        """Items linked to a supplier either via the legacy supplier_id FK
+        or via the SupplierItem junction table (active entries only)."""
+        linked_via_junction = exists().where(
+            (SupplierItem.inventory_item_id == InventoryItem.id)
+            & (SupplierItem.supplier_id == supplier_id)
+            & (SupplierItem.is_active.is_(True))
+        )
+        query = select(InventoryItem).where(
+            or_(
+                InventoryItem.supplier_id == supplier_id,
+                linked_via_junction,
+            )
+        )
         if is_active is not None:
             query = query.where(InventoryItem.is_active == is_active)
 
@@ -60,7 +70,17 @@ class InventoryItemRepository(BaseRepository[InventoryItem]):
         """Legacy search used internally by suppliers module."""
         query = select(InventoryItem).where(InventoryItem.name.ilike(f"%{q}%"))
         if supplier_id is not None:
-            query = query.where(InventoryItem.supplier_id == supplier_id)
+            linked_via_junction = exists().where(
+                (SupplierItem.inventory_item_id == InventoryItem.id)
+                & (SupplierItem.supplier_id == supplier_id)
+                & (SupplierItem.is_active.is_(True))
+            )
+            query = query.where(
+                or_(
+                    InventoryItem.supplier_id == supplier_id,
+                    linked_via_junction,
+                )
+            )
         if is_active is not None:
             query = query.where(InventoryItem.is_active == is_active)
 

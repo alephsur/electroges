@@ -61,7 +61,10 @@ class Customer(UUIDMixin, TimestampMixin, Base):
         back_populates="customer",
         order_by="Budget.issue_date.desc()",
     )
-    # work_orders: Mapped[list["WorkOrder"]] = relationship(back_populates="customer")
+    work_orders: Mapped[list["WorkOrder"]] = relationship(
+        back_populates="customer",
+        order_by="WorkOrder.created_at.desc()",
+    )
 
 
 class CustomerAddress(UUIDMixin, TimestampMixin, Base):
