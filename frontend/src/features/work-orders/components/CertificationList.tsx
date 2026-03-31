@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Plus, Send, Trash2 } from 'lucide-react'
+import { Plus, Send, Trash2, Download, Mail, MessageCircle } from 'lucide-react'
 import { getApiErrorMessage } from '@/shared/hooks/use-api-error'
 import {
   useCertifiableTasks,
@@ -7,6 +7,11 @@ import {
   useDeleteCertification,
   useIssueCertification,
 } from '../hooks/use-certifications'
+import {
+  useDownloadPdf,
+  useOpenWhatsApp,
+} from '../hooks/use-document-actions'
+import { SendEmailModal } from './SendEmailModal'
 import type { Certification, WorkOrder } from '../types'
 
 function fmt(n: number) {
@@ -175,12 +180,25 @@ function CertificationForm({ workOrderId, onClose }: CertificationFormProps) {
 
 interface CertificationListProps {
   workOrder: WorkOrder
+  customerEmail?: string | null
+  customerPhone?: string | null
 }
 
-export function CertificationList({ workOrder }: CertificationListProps) {
+export function CertificationList({
+  workOrder,
+  customerEmail,
+  customerPhone,
+}: CertificationListProps) {
   const [showForm, setShowForm] = useState(false)
+  const [emailCertId, setEmailCertId] = useState<string | null>(null)
   const issueCert = useIssueCertification()
   const deleteCert = useDeleteCertification()
+  const { download, isDownloading } = useDownloadPdf()
+  const { open: openWhatsApp, isLoading: isWhatsAppLoading } = useOpenWhatsApp()
+
+  const emailCert = emailCertId
+    ? workOrder.certifications.find((c) => c.id === emailCertId) ?? null
+    : null
 
   const certified = workOrder.kpis.total_certified
   const total = workOrder.kpis.budget_total
@@ -188,6 +206,15 @@ export function CertificationList({ workOrder }: CertificationListProps) {
 
   return (
     <div className="space-y-4">
+      {emailCert && (
+        <SendEmailModal
+          apiUrl={`/api/v1/work-orders/${workOrder.id}/certifications/${emailCert.id}/send-email`}
+          defaultEmail={customerEmail ?? ''}
+          documentLabel={`certificación ${emailCert.certification_number}`}
+          onClose={() => setEmailCertId(null)}
+        />
+      )}
+
       {/* Progress bar */}
       <div>
         <div className="mb-1 flex justify-between text-sm">
@@ -213,12 +240,13 @@ export function CertificationList({ workOrder }: CertificationListProps) {
 
       {workOrder.certifications.map((cert) => {
         const cfg = CERT_STATUS[cert.status] ?? CERT_STATUS.draft
+        const baseUrl = `/api/v1/work-orders/${workOrder.id}/certifications/${cert.id}`
         return (
           <div
             key={cert.id}
             className="rounded-xl border border-gray-100 bg-white p-4"
           >
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium text-gray-900">
@@ -239,7 +267,43 @@ export function CertificationList({ workOrder }: CertificationListProps) {
                   <p className="mt-1 text-xs text-gray-400">{cert.notes}</p>
                 )}
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-1">
+                {/* PDF download */}
+                <button
+                  onClick={() =>
+                    download(`${baseUrl}/pdf`, `${cert.certification_number}.pdf`)
+                  }
+                  disabled={isDownloading}
+                  title="Descargar PDF"
+                  className="rounded-md border border-gray-200 p-1.5 text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  <Download size={14} />
+                </button>
+
+                {/* Email */}
+                <button
+                  onClick={() => setEmailCertId(cert.id)}
+                  title="Enviar por email"
+                  className="rounded-md border border-gray-200 p-1.5 text-gray-500 hover:bg-gray-50"
+                >
+                  <Mail size={14} />
+                </button>
+
+                {/* WhatsApp */}
+                <button
+                  onClick={() =>
+                    openWhatsApp(
+                      `${baseUrl}/whatsapp-link`,
+                      customerPhone ?? undefined,
+                    )
+                  }
+                  disabled={isWhatsAppLoading}
+                  title="Enviar por WhatsApp"
+                  className="rounded-md border border-green-200 p-1.5 text-green-600 hover:bg-green-50 disabled:opacity-50"
+                >
+                  <MessageCircle size={14} />
+                </button>
+
                 {cert.status === 'draft' && (
                   <>
                     <button

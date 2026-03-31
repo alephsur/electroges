@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import logging
+import re
 import uuid
 from decimal import Decimal
+from pathlib import Path
 
 from fastapi import HTTPException, status
 from sqlalchemy import select, update
@@ -15,6 +17,9 @@ from app.models.stock_movement import StockMovement
 from app.models.work_order import (
     Certification,
     CertificationItem,
+    DeliveryNote,
+    DeliveryNoteItem,
+    DeliveryNoteStatus,
     Task,
     TaskMaterial,
     TaskStatus,
@@ -31,6 +36,8 @@ from app.repositories.stock_movement import StockMovementRepository
 from app.repositories.work_order import (
     CertificationItemRepository,
     CertificationRepository,
+    DeliveryNoteItemRepository,
+    DeliveryNoteRepository,
     TaskMaterialRepository,
     TaskRepository,
     WorkOrderPurchaseOrderRepository,
@@ -40,7 +47,12 @@ from app.schemas.work_order import (
     CertificationCreate,
     CertificationItemResponse,
     CertificationResponse,
+    DeliveryNoteCreate,
+    DeliveryNoteItemResponse,
+    DeliveryNoteResponse,
+    DeliveryNoteUpdate,
     LinkedPurchaseOrderResponse,
+    SendDocumentEmail,
     TaskCreate,
     TaskMaterialConsume,
     TaskMaterialCreate,
@@ -48,6 +60,7 @@ from app.schemas.work_order import (
     TaskResponse,
     TaskStatusUpdate,
     TaskUpdate,
+    WhatsAppLinkResponse,
     WorkOrderCreate,
     WorkOrderKPIs,
     WorkOrderListResponse,
@@ -70,6 +83,8 @@ class WorkOrderService:
         self._cert_repo = CertificationRepository(session)
         self._cert_item_repo = CertificationItemRepository(session)
         self._wopo_repo = WorkOrderPurchaseOrderRepository(session)
+        self._delivery_note_repo = DeliveryNoteRepository(session)
+        self._delivery_note_item_repo = DeliveryNoteItemRepository(session)
         self._budget_repo = BudgetRepository(session)
         self._budget_line_repo = BudgetLineRepository(session)
         self._item_repo = InventoryItemRepository(session)
@@ -1005,11 +1020,14 @@ class WorkOrderService:
                     (i.amount for i in (c.items or [])), Decimal("0.0")
                 )
 
+        customer = order.customer
         return WorkOrderSummary(
             id=order.id,
             work_order_number=order.work_order_number,
             customer_id=order.customer_id,
-            customer_name=order.customer.name if order.customer else "",
+            customer_name=customer.name if customer else "",
+            customer_email=customer.email if customer else None,
+            customer_phone=customer.phone if customer else None,
             origin_budget_id=order.origin_budget_id,
             budget_number=budget.budget_number if budget else None,
             status=order.status.value,
@@ -1079,6 +1097,10 @@ class WorkOrderService:
                 for c in (order.certifications or [])
             ],
             purchase_order_links=po_links,
+            delivery_notes=[
+                self._build_delivery_note_response(dn)
+                for dn in (order.delivery_notes or [])
+            ],
             kpis=kpis,
             updated_at=order.updated_at,
         )
@@ -1275,3 +1297,483 @@ class WorkOrderService:
                         stock_reserved=InventoryItem.stock_reserved - pending
                     )
                 )
+
+    # ── Delivery Notes ────────────────────────────────────────────────────────
+
+    async def create_delivery_note(
+        self, work_order_id: uuid.UUID, data: DeliveryNoteCreate
+    ) -> DeliveryNoteResponse:
+        order = await self._repo.get_by_id(work_order_id)
+        if not order:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Obra no encontrada",
+            )
+
+        number = await self._delivery_note_repo.get_next_delivery_note_number(
+            order.work_order_number
+        )
+        note = DeliveryNote(
+            work_order_id=work_order_id,
+            delivery_note_number=number,
+            status=DeliveryNoteStatus.DRAFT,
+            delivery_date=str(data.delivery_date),
+            requested_by=data.requested_by,
+            notes=data.notes,
+        )
+        note = await self._delivery_note_repo.create(note)
+
+        for idx, item_data in enumerate(data.items):
+            item = DeliveryNoteItem(
+                delivery_note_id=note.id,
+                line_type=item_data.line_type,
+                description=item_data.description,
+                inventory_item_id=item_data.inventory_item_id,
+                quantity=item_data.quantity,
+                unit=item_data.unit,
+                unit_price=item_data.unit_price,
+                sort_order=item_data.sort_order if item_data.sort_order else idx,
+            )
+            await self._delivery_note_item_repo.create(item)
+
+        await self._session.commit()
+        logger.info(
+            "delivery_note.created id=%s number=%s", note.id, number
+        )
+        refreshed = await self._delivery_note_repo.get_with_items(note.id)
+        return self._build_delivery_note_response(refreshed)
+
+    async def list_delivery_notes(
+        self, work_order_id: uuid.UUID
+    ) -> list[DeliveryNoteResponse]:
+        order = await self._repo.get_by_id(work_order_id)
+        if not order:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Obra no encontrada",
+            )
+        notes = await self._delivery_note_repo.list_by_work_order(work_order_id)
+        return [self._build_delivery_note_response(n) for n in notes]
+
+    async def get_delivery_note(
+        self, work_order_id: uuid.UUID, delivery_note_id: uuid.UUID
+    ) -> DeliveryNoteResponse:
+        note = await self._delivery_note_repo.get_with_items(delivery_note_id)
+        if not note or note.work_order_id != work_order_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Albarán no encontrado en esta obra",
+            )
+        return self._build_delivery_note_response(note)
+
+    async def update_delivery_note(
+        self,
+        work_order_id: uuid.UUID,
+        delivery_note_id: uuid.UUID,
+        data: DeliveryNoteUpdate,
+    ) -> DeliveryNoteResponse:
+        note = await self._delivery_note_repo.get_with_items(delivery_note_id)
+        if not note or note.work_order_id != work_order_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Albarán no encontrado en esta obra",
+            )
+        if note.status != DeliveryNoteStatus.DRAFT:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Solo se pueden editar albaranes en borrador",
+            )
+
+        update_fields: dict = {}
+        if data.delivery_date is not None:
+            update_fields["delivery_date"] = str(data.delivery_date)
+        if data.requested_by is not None:
+            update_fields["requested_by"] = data.requested_by
+        if data.notes is not None:
+            update_fields["notes"] = data.notes
+
+        if update_fields:
+            await self._delivery_note_repo.update(note, update_fields)
+
+        if data.items is not None:
+            # Replace all items
+            for existing in (note.items or []):
+                await self._delivery_note_item_repo.delete(existing)
+            for idx, item_data in enumerate(data.items):
+                item = DeliveryNoteItem(
+                    delivery_note_id=note.id,
+                    line_type=item_data.line_type,
+                    description=item_data.description,
+                    inventory_item_id=item_data.inventory_item_id,
+                    quantity=item_data.quantity,
+                    unit=item_data.unit,
+                    unit_price=item_data.unit_price,
+                    sort_order=item_data.sort_order if item_data.sort_order else idx,
+                )
+                await self._delivery_note_item_repo.create(item)
+
+        await self._session.commit()
+        refreshed = await self._delivery_note_repo.get_with_items(note.id)
+        return self._build_delivery_note_response(refreshed)
+
+    async def issue_delivery_note(
+        self, work_order_id: uuid.UUID, delivery_note_id: uuid.UUID
+    ) -> DeliveryNoteResponse:
+        note = await self._delivery_note_repo.get_with_items(delivery_note_id)
+        if not note or note.work_order_id != work_order_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Albarán no encontrado en esta obra",
+            )
+        if note.status != DeliveryNoteStatus.DRAFT:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="El albarán ya está emitido",
+            )
+        if not note.items:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="El albarán debe tener al menos una línea para poder emitirse",
+            )
+        await self._delivery_note_repo.update(
+            note, {"status": DeliveryNoteStatus.ISSUED}
+        )
+        await self._session.commit()
+        logger.info("delivery_note.issued id=%s", delivery_note_id)
+        refreshed = await self._delivery_note_repo.get_with_items(note.id)
+        return self._build_delivery_note_response(refreshed)
+
+    async def delete_delivery_note(
+        self, work_order_id: uuid.UUID, delivery_note_id: uuid.UUID
+    ) -> None:
+        note = await self._delivery_note_repo.get_by_id(delivery_note_id)
+        if not note or note.work_order_id != work_order_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Albarán no encontrado en esta obra",
+            )
+        if note.status != DeliveryNoteStatus.DRAFT:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Solo se pueden eliminar albaranes en borrador",
+            )
+        await self._delivery_note_repo.delete(note)
+        await self._session.commit()
+        logger.info("delivery_note.deleted id=%s", delivery_note_id)
+
+    def _build_delivery_note_response(
+        self, note: DeliveryNote
+    ) -> DeliveryNoteResponse:
+        items = []
+        total = Decimal("0.0")
+        for item in (note.items or []):
+            subtotal = item.quantity * item.unit_price
+            total += subtotal
+            inv_name = None
+            if hasattr(item, "inventory_item") and item.inventory_item:
+                inv_name = item.inventory_item.name
+            items.append(
+                DeliveryNoteItemResponse(
+                    id=item.id,
+                    delivery_note_id=item.delivery_note_id,
+                    line_type=item.line_type.value,
+                    description=item.description,
+                    inventory_item_id=item.inventory_item_id,
+                    inventory_item_name=inv_name,
+                    quantity=item.quantity,
+                    unit=item.unit,
+                    unit_price=item.unit_price,
+                    subtotal=subtotal,
+                    sort_order=item.sort_order,
+                )
+            )
+        return DeliveryNoteResponse(
+            id=note.id,
+            work_order_id=note.work_order_id,
+            delivery_note_number=note.delivery_note_number,
+            status=note.status.value,
+            delivery_date=note.delivery_date,
+            requested_by=note.requested_by,
+            notes=note.notes,
+            items=items,
+            total_amount=total,
+            created_at=note.created_at,
+            updated_at=note.updated_at,
+        )
+
+    # ── Delivery Note PDF / Email / WhatsApp ──────────────────────────────────
+
+    async def generate_delivery_note_pdf(
+        self, work_order_id: uuid.UUID, delivery_note_id: uuid.UUID
+    ) -> bytes:
+        from weasyprint import HTML
+
+        from app.core.config import settings
+        from app.repositories.company_settings import CompanySettingsRepository
+        from app.utils.pdf_renderer import render_delivery_note_pdf_html
+
+        note = await self._delivery_note_repo.get_with_items(delivery_note_id)
+        if not note or note.work_order_id != work_order_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Albarán no encontrado en esta obra",
+            )
+        order = await self._repo.get_by_id(work_order_id)
+        customer = await self._customer_repo.get_by_id(order.customer_id)
+        company = await CompanySettingsRepository(self._session).get()
+
+        total_amount = sum(
+            (item.quantity * item.unit_price for item in (note.items or [])),
+            Decimal("0.0"),
+        )
+
+        html = render_delivery_note_pdf_html(
+            note=note,
+            work_order=order,
+            company=company,
+            customer=customer,
+            total_amount=total_amount,
+        )
+        pdf_bytes = HTML(string=html).write_pdf()
+
+        upload_dir = Path(settings.UPLOAD_DIR) / "delivery_notes" / str(delivery_note_id)
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        (upload_dir / f"{note.delivery_note_number}.pdf").write_bytes(pdf_bytes)
+
+        logger.info(
+            "delivery_note.pdf_generated id=%s number=%s",
+            delivery_note_id,
+            note.delivery_note_number,
+        )
+        return pdf_bytes
+
+    async def send_delivery_note_email(
+        self,
+        work_order_id: uuid.UUID,
+        delivery_note_id: uuid.UUID,
+        data: SendDocumentEmail,
+    ) -> None:
+        from app.repositories.company_settings import CompanySettingsRepository
+        from app.utils.email_sender import send_email_with_attachment
+
+        note = await self._delivery_note_repo.get_with_items(delivery_note_id)
+        if not note or note.work_order_id != work_order_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Albarán no encontrado en esta obra",
+            )
+        order = await self._repo.get_by_id(work_order_id)
+        company = await CompanySettingsRepository(self._session).get()
+
+        pdf_bytes = await self.generate_delivery_note_pdf(work_order_id, delivery_note_id)
+
+        subject = data.subject or (
+            f"Albarán {note.delivery_note_number} — {company.company_name}"
+        )
+        body = data.message or (
+            f"<p>Estimado/a cliente,</p>"
+            f"<p>Le adjuntamos el albarán <strong>{note.delivery_note_number}</strong> "
+            f"correspondiente a la obra <strong>{order.work_order_number}</strong>.</p>"
+            f"<p>Fecha de entrega: {note.delivery_date}</p>"
+            f"<br><p>Atentamente,<br><strong>{company.company_name}</strong></p>"
+        )
+
+        await send_email_with_attachment(
+            to_email=data.to_email,
+            subject=subject,
+            body_html=body,
+            attachment_bytes=pdf_bytes,
+            attachment_filename=f"{note.delivery_note_number}.pdf",
+        )
+        logger.info(
+            "delivery_note.email_sent id=%s to=%s", delivery_note_id, data.to_email
+        )
+
+    async def get_delivery_note_whatsapp_link(
+        self,
+        work_order_id: uuid.UUID,
+        delivery_note_id: uuid.UUID,
+        phone: str | None,
+    ) -> WhatsAppLinkResponse:
+        from app.repositories.company_settings import CompanySettingsRepository
+
+        note = await self._delivery_note_repo.get_with_items(delivery_note_id)
+        if not note or note.work_order_id != work_order_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Albarán no encontrado en esta obra",
+            )
+        order = await self._repo.get_by_id(work_order_id)
+        company = await CompanySettingsRepository(self._session).get()
+
+        if not phone:
+            customer = await self._customer_repo.get_by_id(order.customer_id)
+            phone = customer.phone if customer else None
+
+        if not phone:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No hay número de teléfono disponible para el enlace de WhatsApp",
+            )
+
+        normalized = _normalize_phone_es(phone)
+        total = sum(i.quantity * i.unit_price for i in (note.items or []))
+        text = (
+            f"Estimado/a cliente, le enviamos el albarán "
+            f"*{note.delivery_note_number}* "
+            f"de la obra *{order.work_order_number}*.\n"
+            f"Fecha de entrega: {note.delivery_date}\n"
+            f"Total: {float(total):,.2f} €\n\n"
+            f"— {company.company_name}"
+        )
+        import urllib.parse
+        url = f"https://wa.me/{normalized}?text={urllib.parse.quote(text)}"
+        return WhatsAppLinkResponse(url=url, phone=normalized)
+
+    # ── Certification PDF / Email / WhatsApp ──────────────────────────────────
+
+    async def generate_certification_pdf(
+        self, work_order_id: uuid.UUID, cert_id: uuid.UUID
+    ) -> bytes:
+        from weasyprint import HTML
+
+        from app.core.config import settings
+        from app.repositories.company_settings import CompanySettingsRepository
+        from app.utils.pdf_renderer import render_certification_pdf_html
+
+        cert = await self._cert_repo.get_with_items(cert_id)
+        if not cert or cert.work_order_id != work_order_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Certificación no encontrada en esta obra",
+            )
+        order = await self._repo.get_by_id(work_order_id)
+        customer = await self._customer_repo.get_by_id(order.customer_id)
+        company = await CompanySettingsRepository(self._session).get()
+
+        total_amount = sum(
+            (item.amount for item in (cert.items or [])),
+            Decimal("0.0"),
+        )
+
+        html = render_certification_pdf_html(
+            cert=cert,
+            work_order=order,
+            company=company,
+            customer=customer,
+            total_amount=total_amount,
+        )
+        pdf_bytes = HTML(string=html).write_pdf()
+
+        upload_dir = Path(settings.UPLOAD_DIR) / "certifications" / str(cert_id)
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        (upload_dir / f"{cert.certification_number}.pdf").write_bytes(pdf_bytes)
+
+        logger.info(
+            "certification.pdf_generated id=%s number=%s",
+            cert_id,
+            cert.certification_number,
+        )
+        return pdf_bytes
+
+    async def send_certification_email(
+        self,
+        work_order_id: uuid.UUID,
+        cert_id: uuid.UUID,
+        data: SendDocumentEmail,
+    ) -> None:
+        from app.repositories.company_settings import CompanySettingsRepository
+        from app.utils.email_sender import send_email_with_attachment
+
+        cert = await self._cert_repo.get_with_items(cert_id)
+        if not cert or cert.work_order_id != work_order_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Certificación no encontrada en esta obra",
+            )
+        order = await self._repo.get_by_id(work_order_id)
+        company = await CompanySettingsRepository(self._session).get()
+
+        pdf_bytes = await self.generate_certification_pdf(work_order_id, cert_id)
+
+        subject = data.subject or (
+            f"Certificación {cert.certification_number} — {company.company_name}"
+        )
+        body = data.message or (
+            f"<p>Estimado/a cliente,</p>"
+            f"<p>Le adjuntamos la certificación de avance "
+            f"<strong>{cert.certification_number}</strong> "
+            f"correspondiente a la obra <strong>{order.work_order_number}</strong>.</p>"
+            f"<p>Le rogamos revise el documento y confirme su conformidad.</p>"
+            f"<br><p>Atentamente,<br><strong>{company.company_name}</strong></p>"
+        )
+
+        await send_email_with_attachment(
+            to_email=data.to_email,
+            subject=subject,
+            body_html=body,
+            attachment_bytes=pdf_bytes,
+            attachment_filename=f"{cert.certification_number}.pdf",
+        )
+        logger.info(
+            "certification.email_sent id=%s to=%s", cert_id, data.to_email
+        )
+
+    async def get_certification_whatsapp_link(
+        self,
+        work_order_id: uuid.UUID,
+        cert_id: uuid.UUID,
+        phone: str | None,
+    ) -> WhatsAppLinkResponse:
+        from app.repositories.company_settings import CompanySettingsRepository
+
+        cert = await self._cert_repo.get_with_items(cert_id)
+        if not cert or cert.work_order_id != work_order_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Certificación no encontrada en esta obra",
+            )
+        order = await self._repo.get_by_id(work_order_id)
+        company = await CompanySettingsRepository(self._session).get()
+
+        if not phone:
+            customer = await self._customer_repo.get_by_id(order.customer_id)
+            phone = customer.phone if customer else None
+
+        if not phone:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No hay número de teléfono disponible para el enlace de WhatsApp",
+            )
+
+        normalized = _normalize_phone_es(phone)
+        total = sum(item.amount for item in (cert.items or []))
+        text = (
+            f"Estimado/a cliente, le enviamos la certificación de avance "
+            f"*{cert.certification_number}* "
+            f"de la obra *{order.work_order_number}*.\n"
+            f"Importe certificado: {float(total):,.2f} €\n"
+            f"Le rogamos confirme su conformidad.\n\n"
+            f"— {company.company_name}"
+        )
+        import urllib.parse
+        url = f"https://wa.me/{normalized}?text={urllib.parse.quote(text)}"
+        return WhatsAppLinkResponse(url=url, phone=normalized)
+
+
+def _normalize_phone_es(phone: str) -> str:
+    """
+    Normalizes a Spanish phone number to the format required by wa.me (digits only,
+    with country code). Examples:
+        +34 600 123 456  → 34600123456
+        0034600123456    → 34600123456
+        600 123 456      → 34600123456
+    """
+    digits = re.sub(r"\D", "", phone)
+    if digits.startswith("0034"):
+        digits = digits[2:]
+    elif digits.startswith("34") and len(digits) == 11:
+        pass  # already has country code
+    elif digits.startswith(("6", "7", "9")) and len(digits) == 9:
+        digits = "34" + digits
+    return digits

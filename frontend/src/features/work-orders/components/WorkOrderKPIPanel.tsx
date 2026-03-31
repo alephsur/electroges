@@ -1,7 +1,7 @@
 import type { WorkOrderKPIs } from '../types'
 
-function fmt(n: number, decimals = 2) {
-  return n.toLocaleString('es-ES', {
+function fmt(n: number | string, decimals = 2) {
+  return Number(n).toLocaleString('es-ES', {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   })

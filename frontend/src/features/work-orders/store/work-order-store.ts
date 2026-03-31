@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import type { WorkOrderStatus } from '../types'
 
-type ActiveTab = 'resumen' | 'tareas' | 'materiales' | 'pedidos' | 'certificaciones' | 'notas'
+type ActiveTab = 'resumen' | 'tareas' | 'materiales' | 'pedidos' | 'certificaciones' | 'albaranes' | 'notas'
 
 interface WorkOrderUIState {
   searchQuery: string

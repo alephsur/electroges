@@ -8,9 +8,10 @@ import { TaskList } from './TaskList'
 import { CertificationList } from './CertificationList'
 import { WorkOrderPurchaseOrders } from './WorkOrderPurchaseOrders'
 import { WorkOrderMaterials } from './WorkOrderMaterials'
+import { DeliveryNoteList } from './DeliveryNoteList'
 import type { WorkOrder, WorkOrderStatus } from '../types'
 
-type Tab = 'resumen' | 'tareas' | 'materiales' | 'pedidos' | 'certificaciones' | 'notas'
+type Tab = 'resumen' | 'tareas' | 'materiales' | 'pedidos' | 'certificaciones' | 'albaranes' | 'notas'
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'resumen', label: 'Resumen' },
@@ -18,6 +19,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'materiales', label: 'Materiales' },
   { id: 'pedidos', label: 'Pedidos' },
   { id: 'certificaciones', label: 'Certificaciones' },
+  { id: 'albaranes', label: 'Albaranes' },
   { id: 'notas', label: 'Notas' },
 ]
 
@@ -171,7 +173,19 @@ export function WorkOrderDetail({
         )}
 
         {activeTab === 'certificaciones' && (
-          <CertificationList workOrder={workOrder} />
+          <CertificationList
+            workOrder={workOrder}
+            customerEmail={workOrder.customer_email}
+            customerPhone={workOrder.customer_phone}
+          />
+        )}
+
+        {activeTab === 'albaranes' && (
+          <DeliveryNoteList
+            workOrder={workOrder}
+            customerEmail={workOrder.customer_email}
+            customerPhone={workOrder.customer_phone}
+          />
         )}
 
         {activeTab === 'notas' && (

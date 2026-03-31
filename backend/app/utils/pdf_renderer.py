@@ -39,6 +39,44 @@ def _get_jinja_env() -> Environment:
     return env
 
 
+def render_delivery_note_pdf_html(note, work_order, company, customer, total_amount) -> str:
+    """Renders the delivery note PDF HTML using the Jinja2 template."""
+    env = _get_jinja_env()
+    template = env.get_template("delivery_note_pdf.html")
+
+    logo_abs_path = None
+    if company.logo_path:
+        logo_abs_path = str(Path(company.logo_path).resolve())
+
+    return template.render(
+        note=note,
+        work_order=work_order,
+        company=company,
+        customer=customer,
+        total_amount=total_amount,
+        logo_abs_path=logo_abs_path,
+    )
+
+
+def render_certification_pdf_html(cert, work_order, company, customer, total_amount) -> str:
+    """Renders the certification PDF HTML using the Jinja2 template."""
+    env = _get_jinja_env()
+    template = env.get_template("certification_pdf.html")
+
+    logo_abs_path = None
+    if company.logo_path:
+        logo_abs_path = str(Path(company.logo_path).resolve())
+
+    return template.render(
+        cert=cert,
+        work_order=work_order,
+        company=company,
+        customer=customer,
+        total_amount=total_amount,
+        logo_abs_path=logo_abs_path,
+    )
+
+
 def render_budget_pdf_html(budget, company, totals, customer, address, lines) -> str:
     """
     Renders the budget PDF HTML using the Jinja2 template.

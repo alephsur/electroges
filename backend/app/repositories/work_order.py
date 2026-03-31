@@ -13,6 +13,8 @@ from sqlalchemy.orm import selectinload
 from app.models.work_order import (
     Certification,
     CertificationItem,
+    DeliveryNote,
+    DeliveryNoteItem,
     Task,
     TaskMaterial,
     WorkOrder,
@@ -117,6 +119,9 @@ class WorkOrderRepository(BaseRepository[WorkOrder]):
                 ).selectinload(PurchaseOrder.lines).selectinload(
                     PurchaseOrderLine.inventory_item
                 ),
+                selectinload(WorkOrder.delivery_notes).selectinload(
+                    DeliveryNote.items
+                ).selectinload(DeliveryNoteItem.inventory_item),
             )
             .where(WorkOrder.id == work_order_id)
         )
@@ -246,3 +251,51 @@ class CertificationItemRepository(BaseRepository[CertificationItem]):
 class WorkOrderPurchaseOrderRepository(BaseRepository[WorkOrderPurchaseOrder]):
     def __init__(self, session: AsyncSession):
         super().__init__(WorkOrderPurchaseOrder, session)
+
+
+class DeliveryNoteRepository(BaseRepository[DeliveryNote]):
+    def __init__(self, session: AsyncSession):
+        super().__init__(DeliveryNote, session)
+
+    async def get_next_delivery_note_number(self, work_order_number: str) -> str:
+        result = await self.session.execute(
+            select(func.count(DeliveryNote.id))
+            .join(WorkOrder)
+            .where(WorkOrder.work_order_number == work_order_number)
+        )
+        count = result.scalar() or 0
+        return f"ALBAR-{work_order_number}-{(count + 1):02d}"
+
+    async def get_with_items(
+        self, delivery_note_id: uuid.UUID
+    ) -> DeliveryNote | None:
+        result = await self.session.execute(
+            select(DeliveryNote)
+            .options(
+                selectinload(DeliveryNote.items).selectinload(
+                    DeliveryNoteItem.inventory_item
+                )
+            )
+            .where(DeliveryNote.id == delivery_note_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def list_by_work_order(
+        self, work_order_id: uuid.UUID
+    ) -> list[DeliveryNote]:
+        result = await self.session.execute(
+            select(DeliveryNote)
+            .options(
+                selectinload(DeliveryNote.items).selectinload(
+                    DeliveryNoteItem.inventory_item
+                )
+            )
+            .where(DeliveryNote.work_order_id == work_order_id)
+            .order_by(DeliveryNote.created_at.desc())
+        )
+        return list(result.scalars().all())
+
+
+class DeliveryNoteItemRepository(BaseRepository[DeliveryNoteItem]):
+    def __init__(self, session: AsyncSession):
+        super().__init__(DeliveryNoteItem, session)

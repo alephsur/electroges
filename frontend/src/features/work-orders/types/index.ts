@@ -114,6 +114,8 @@ export interface WorkOrderSummary {
   work_order_number: string
   customer_id: string
   customer_name: string
+  customer_email: string | null
+  customer_phone: string | null
   origin_budget_id: string | null
   budget_number: string | null
   status: WorkOrderStatus
@@ -134,6 +136,7 @@ export interface WorkOrder extends WorkOrderSummary {
   tasks: Task[]
   certifications: Certification[]
   purchase_order_links: LinkedPurchaseOrder[]
+  delivery_notes: DeliveryNote[]
   kpis: WorkOrderKPIs
   updated_at: string
 }
@@ -151,4 +154,59 @@ export interface WorkOrderFilters {
   status?: WorkOrderStatus
   skip?: number
   limit?: number
+}
+
+export type DeliveryNoteStatus = 'draft' | 'issued'
+export type DeliveryNoteLineType = 'material' | 'labor' | 'other'
+
+export interface DeliveryNoteItem {
+  id: string
+  delivery_note_id: string
+  line_type: DeliveryNoteLineType
+  description: string
+  inventory_item_id: string | null
+  inventory_item_name: string | null
+  quantity: number
+  unit: string
+  unit_price: number
+  subtotal: number
+  sort_order: number
+}
+
+export interface DeliveryNote {
+  id: string
+  work_order_id: string
+  delivery_note_number: string
+  status: DeliveryNoteStatus
+  delivery_date: string
+  requested_by: string | null
+  notes: string | null
+  items: DeliveryNoteItem[]
+  total_amount: number
+  created_at: string
+  updated_at: string
+}
+
+export interface DeliveryNoteItemCreate {
+  line_type: DeliveryNoteLineType
+  description: string
+  inventory_item_id?: string | null
+  quantity: number
+  unit: string
+  unit_price: number
+  sort_order?: number
+}
+
+export interface DeliveryNoteCreate {
+  delivery_date: string
+  requested_by?: string | null
+  notes?: string | null
+  items: DeliveryNoteItemCreate[]
+}
+
+export interface DeliveryNoteUpdate {
+  delivery_date?: string
+  requested_by?: string | null
+  notes?: string | null
+  items?: DeliveryNoteItemCreate[]
 }

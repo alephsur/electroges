@@ -7,7 +7,7 @@ from decimal import Decimal
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 # ── Task Materials ────────────────────────────────────────────────────────────
@@ -210,6 +210,8 @@ class WorkOrderSummary(BaseModel):
     work_order_number: str
     customer_id: UUID
     customer_name: str
+    customer_email: str | None
+    customer_phone: str | None
     origin_budget_id: UUID | None
     budget_number: str | None
     status: str
@@ -230,6 +232,7 @@ class WorkOrderResponse(WorkOrderSummary):
     tasks: list[TaskResponse] = []
     certifications: list[CertificationResponse] = []
     purchase_order_links: list[LinkedPurchaseOrderResponse] = []
+    delivery_notes: list["DeliveryNoteResponse"] = []
     kpis: WorkOrderKPIs
     updated_at: datetime
 
@@ -241,6 +244,64 @@ class WorkOrderListResponse(BaseModel):
     limit: int
 
 
+# ── Delivery Notes ────────────────────────────────────────────────────────────
+
+class DeliveryNoteItemCreate(BaseModel):
+    line_type: Literal["material", "labor", "other"] = "material"
+    description: str = Field(..., max_length=500)
+    inventory_item_id: UUID | None = None
+    quantity: Decimal = Field(gt=0)
+    unit: str = Field(default="ud", max_length=20)
+    unit_price: Decimal = Field(ge=0)
+    sort_order: int = 0
+
+
+class DeliveryNoteCreate(BaseModel):
+    delivery_date: date
+    requested_by: str | None = Field(default=None, max_length=255)
+    notes: str | None = None
+    items: list[DeliveryNoteItemCreate] = []
+
+
+class DeliveryNoteUpdate(BaseModel):
+    delivery_date: date | None = None
+    requested_by: str | None = None
+    notes: str | None = None
+    items: list[DeliveryNoteItemCreate] | None = None
+
+
+class DeliveryNoteItemResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    delivery_note_id: UUID
+    line_type: str
+    description: str
+    inventory_item_id: UUID | None
+    inventory_item_name: str | None
+    quantity: Decimal
+    unit: str
+    unit_price: Decimal
+    subtotal: Decimal
+    sort_order: int
+
+
+class DeliveryNoteResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    work_order_id: UUID
+    delivery_note_number: str
+    status: str
+    delivery_date: str
+    requested_by: str | None
+    notes: str | None
+    items: list[DeliveryNoteItemResponse] = []
+    total_amount: Decimal
+    created_at: datetime
+    updated_at: datetime
+
+
 # ── New Purchase Order for Work Order ─────────────────────────────────────────
 
 class NewPurchaseOrderForWorkOrder(BaseModel):
@@ -249,3 +310,20 @@ class NewPurchaseOrderForWorkOrder(BaseModel):
     expected_date: date | None = None
     notes: str | None = None
     lines: list[dict] = []  # Delegated to PurchaseOrderLineCreate validation
+
+
+# ── Document send actions ─────────────────────────────────────────────────────
+
+class SendDocumentEmail(BaseModel):
+    to_email: EmailStr
+    subject: str | None = None
+    message: str | None = None
+
+
+class WhatsAppLinkResponse(BaseModel):
+    url: str
+    phone: str
+
+
+# Resolve forward references
+WorkOrderResponse.model_rebuild()

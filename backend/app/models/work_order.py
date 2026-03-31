@@ -41,6 +41,17 @@ class CertificationStatus(str, enum.Enum):
     INVOICED = "invoiced"
 
 
+class DeliveryNoteStatus(str, enum.Enum):
+    DRAFT = "draft"
+    ISSUED = "issued"
+
+
+class DeliveryNoteLineType(str, enum.Enum):
+    MATERIAL = "material"
+    LABOR = "labor"
+    OTHER = "other"
+
+
 class WorkOrder(UUIDMixin, TimestampMixin, Base):
     __tablename__ = "work_orders"
 
@@ -89,6 +100,11 @@ class WorkOrder(UUIDMixin, TimestampMixin, Base):
     purchase_order_links: Mapped[list["WorkOrderPurchaseOrder"]] = relationship(
         back_populates="work_order",
         cascade="all, delete-orphan",
+    )
+    delivery_notes: Mapped[list["DeliveryNote"]] = relationship(
+        back_populates="work_order",
+        cascade="all, delete-orphan",
+        order_by="DeliveryNote.created_at",
     )
     # Forward reference for Invoicing module — activated when Invoice module is implemented
     # invoices: Mapped[list["Invoice"]] = relationship(back_populates="work_order")
@@ -247,6 +263,70 @@ class CertificationItem(UUIDMixin, TimestampMixin, Base):
 
     certification: Mapped["Certification"] = relationship(back_populates="items")
     task: Mapped["Task"] = relationship(back_populates="certification_items")
+
+
+class DeliveryNote(UUIDMixin, TimestampMixin, Base):
+    """Albarán de entrega de materiales/trabajos en una obra."""
+
+    __tablename__ = "delivery_notes"
+
+    work_order_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("work_orders.id"), nullable=False, index=True
+    )
+    delivery_note_number: Mapped[str] = mapped_column(
+        String(30), unique=True, nullable=False
+    )
+    status: Mapped[DeliveryNoteStatus] = mapped_column(
+        SQLEnum(
+            DeliveryNoteStatus,
+            name="delivery_note_status",
+            values_callable=lambda obj: [e.value for e in obj],
+        ),
+        nullable=False,
+        default=DeliveryNoteStatus.DRAFT,
+    )
+    delivery_date: Mapped[str] = mapped_column(String(10), nullable=False)  # ISO date
+    requested_by: Mapped[str | None] = mapped_column(String(255))
+    notes: Mapped[str | None] = mapped_column(Text)
+
+    # Relationships
+    work_order: Mapped["WorkOrder"] = relationship(back_populates="delivery_notes")
+    items: Mapped[list["DeliveryNoteItem"]] = relationship(
+        back_populates="delivery_note",
+        cascade="all, delete-orphan",
+        order_by="DeliveryNoteItem.sort_order",
+    )
+
+
+class DeliveryNoteItem(UUIDMixin, TimestampMixin, Base):
+    """Línea de un albarán: material, mano de obra u otros."""
+
+    __tablename__ = "delivery_note_items"
+
+    delivery_note_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("delivery_notes.id"), nullable=False, index=True
+    )
+    line_type: Mapped[DeliveryNoteLineType] = mapped_column(
+        SQLEnum(
+            DeliveryNoteLineType,
+            name="delivery_note_line_type",
+            values_callable=lambda obj: [e.value for e in obj],
+        ),
+        nullable=False,
+        default=DeliveryNoteLineType.MATERIAL,
+    )
+    description: Mapped[str] = mapped_column(String(500), nullable=False)
+    inventory_item_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("inventory_items.id"), nullable=True
+    )
+    quantity: Mapped[Decimal] = mapped_column(Numeric(10, 3), nullable=False)
+    unit: Mapped[str] = mapped_column(String(20), nullable=False, default="ud")
+    unit_price: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    # Relationships
+    delivery_note: Mapped["DeliveryNote"] = relationship(back_populates="items")
+    inventory_item: Mapped["InventoryItem | None"] = relationship()
 
 
 # Resolve forward references

@@ -2,19 +2,25 @@
 
 import uuid
 
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, Query, Response, status
+from fastapi.responses import StreamingResponse
 
 from app.core.dependencies import CurrentUser, DbSession
 from app.schemas.work_order import (
     CertificationCreate,
     CertificationResponse,
+    DeliveryNoteCreate,
+    DeliveryNoteResponse,
+    DeliveryNoteUpdate,
     NewPurchaseOrderForWorkOrder,
+    SendDocumentEmail,
     TaskCreate,
     TaskMaterialConsume,
     TaskMaterialCreate,
     TaskResponse,
     TaskStatusUpdate,
     TaskUpdate,
+    WhatsAppLinkResponse,
     WorkOrderCreate,
     WorkOrderKPIs,
     WorkOrderListResponse,
@@ -350,3 +356,190 @@ async def delete_certification(
 ):
     svc = WorkOrderService(db)
     await svc.delete_certification(work_order_id, cert_id)
+
+
+# ── Delivery Notes ────────────────────────────────────────────────────────────
+
+@router.get(
+    "/{work_order_id}/delivery-notes",
+    response_model=list[DeliveryNoteResponse],
+)
+async def list_delivery_notes(
+    work_order_id: uuid.UUID,
+    db: DbSession,
+    _: CurrentUser,
+):
+    svc = WorkOrderService(db)
+    return await svc.list_delivery_notes(work_order_id)
+
+
+@router.post(
+    "/{work_order_id}/delivery-notes",
+    response_model=DeliveryNoteResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_delivery_note(
+    work_order_id: uuid.UUID,
+    data: DeliveryNoteCreate,
+    db: DbSession,
+    _: CurrentUser,
+):
+    svc = WorkOrderService(db)
+    return await svc.create_delivery_note(work_order_id, data)
+
+
+@router.get(
+    "/{work_order_id}/delivery-notes/{delivery_note_id}",
+    response_model=DeliveryNoteResponse,
+)
+async def get_delivery_note(
+    work_order_id: uuid.UUID,
+    delivery_note_id: uuid.UUID,
+    db: DbSession,
+    _: CurrentUser,
+):
+    svc = WorkOrderService(db)
+    return await svc.get_delivery_note(work_order_id, delivery_note_id)
+
+
+@router.patch(
+    "/{work_order_id}/delivery-notes/{delivery_note_id}",
+    response_model=DeliveryNoteResponse,
+)
+async def update_delivery_note(
+    work_order_id: uuid.UUID,
+    delivery_note_id: uuid.UUID,
+    data: DeliveryNoteUpdate,
+    db: DbSession,
+    _: CurrentUser,
+):
+    svc = WorkOrderService(db)
+    return await svc.update_delivery_note(work_order_id, delivery_note_id, data)
+
+
+@router.post(
+    "/{work_order_id}/delivery-notes/{delivery_note_id}/issue",
+    response_model=DeliveryNoteResponse,
+)
+async def issue_delivery_note(
+    work_order_id: uuid.UUID,
+    delivery_note_id: uuid.UUID,
+    db: DbSession,
+    _: CurrentUser,
+):
+    svc = WorkOrderService(db)
+    return await svc.issue_delivery_note(work_order_id, delivery_note_id)
+
+
+@router.delete(
+    "/{work_order_id}/delivery-notes/{delivery_note_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_delivery_note(
+    work_order_id: uuid.UUID,
+    delivery_note_id: uuid.UUID,
+    db: DbSession,
+    _: CurrentUser,
+):
+    svc = WorkOrderService(db)
+    await svc.delete_delivery_note(work_order_id, delivery_note_id)
+
+
+@router.get("/{work_order_id}/delivery-notes/{delivery_note_id}/pdf")
+async def download_delivery_note_pdf(
+    work_order_id: uuid.UUID,
+    delivery_note_id: uuid.UUID,
+    db: DbSession,
+    _: CurrentUser,
+):
+    svc = WorkOrderService(db)
+    pdf_bytes = await svc.generate_delivery_note_pdf(work_order_id, delivery_note_id)
+    return StreamingResponse(
+        iter([pdf_bytes]),
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"attachment; filename=albaran_{delivery_note_id}.pdf"
+        },
+    )
+
+
+@router.post(
+    "/{work_order_id}/delivery-notes/{delivery_note_id}/send-email",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def send_delivery_note_email(
+    work_order_id: uuid.UUID,
+    delivery_note_id: uuid.UUID,
+    data: SendDocumentEmail,
+    db: DbSession,
+    _: CurrentUser,
+):
+    svc = WorkOrderService(db)
+    await svc.send_delivery_note_email(work_order_id, delivery_note_id, data)
+
+
+@router.get(
+    "/{work_order_id}/delivery-notes/{delivery_note_id}/whatsapp-link",
+    response_model=WhatsAppLinkResponse,
+)
+async def get_delivery_note_whatsapp_link(
+    work_order_id: uuid.UUID,
+    delivery_note_id: uuid.UUID,
+    db: DbSession,
+    _: CurrentUser,
+    phone: str | None = Query(default=None),
+):
+    svc = WorkOrderService(db)
+    return await svc.get_delivery_note_whatsapp_link(
+        work_order_id, delivery_note_id, phone
+    )
+
+
+# ── Certification PDF / Email / WhatsApp ──────────────────────────────────────
+
+@router.get("/{work_order_id}/certifications/{cert_id}/pdf")
+async def download_certification_pdf(
+    work_order_id: uuid.UUID,
+    cert_id: uuid.UUID,
+    db: DbSession,
+    _: CurrentUser,
+):
+    svc = WorkOrderService(db)
+    pdf_bytes = await svc.generate_certification_pdf(work_order_id, cert_id)
+    return StreamingResponse(
+        iter([pdf_bytes]),
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"attachment; filename=certificacion_{cert_id}.pdf"
+        },
+    )
+
+
+@router.post(
+    "/{work_order_id}/certifications/{cert_id}/send-email",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def send_certification_email(
+    work_order_id: uuid.UUID,
+    cert_id: uuid.UUID,
+    data: SendDocumentEmail,
+    db: DbSession,
+    _: CurrentUser,
+):
+    svc = WorkOrderService(db)
+    await svc.send_certification_email(work_order_id, cert_id, data)
+
+
+@router.get(
+    "/{work_order_id}/certifications/{cert_id}/whatsapp-link",
+    response_model=WhatsAppLinkResponse,
+)
+async def get_certification_whatsapp_link(
+    work_order_id: uuid.UUID,
+    cert_id: uuid.UUID,
+    db: DbSession,
+    _: CurrentUser,
+    phone: str | None = Query(default=None),
+):
+    svc = WorkOrderService(db)
+    return await svc.get_certification_whatsapp_link(work_order_id, cert_id, phone)
