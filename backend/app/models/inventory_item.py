@@ -41,6 +41,11 @@ class InventoryItem(UUIDMixin, TimestampMixin, Base):
     stock_min: Mapped[Decimal] = mapped_column(
         Numeric(10, 3), nullable=False, default=Decimal("0"), server_default="0"
     )
+    # Maintained atomically by WorkOrder module: sum of estimated_quantity
+    # of active TaskMaterials. Updated on task/work_order create/cancel.
+    stock_reserved: Mapped[Decimal] = mapped_column(
+        Numeric(10, 3), nullable=False, default=Decimal("0"), server_default="0"
+    )
     # TODO: deprecated. Use supplier_items relationship. Remove in Phase 2.
     supplier_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("suppliers.id", ondelete="SET NULL"), nullable=True

@@ -26,6 +26,8 @@ dependencies = [
     # Utils
     "python-dateutil==2.9.0",
     "pillow==11.0.0",
+    # Email
+    "aiosmtplib>=3.0.0",
 ]
 
 [dependency-groups]

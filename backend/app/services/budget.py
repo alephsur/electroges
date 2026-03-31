@@ -391,13 +391,11 @@ class BudgetService:
 
     async def accept_and_create_work_order(self, budget_id: uuid.UUID) -> dict:
         """
-        STEP 2: accepts the budget and marks it as ACCEPTED.
+        STEP 2: accepts the budget, creates WorkOrder + Tasks + TaskMaterials.
         The user must have confirmed the preview first.
-
-        TODO: when WorkOrderService exists, call:
-            work_order = await work_order_service.create_from_budget(budget_id)
-            await self._repo.update(budget, {"work_order_id": work_order.id})
         """
+        from app.services.work_order import WorkOrderService
+
         budget = await self._repo.get_by_id(budget_id)
         if not budget:
             raise HTTPException(
@@ -410,15 +408,20 @@ class BudgetService:
                 detail="Solo se puede aceptar un presupuesto en estado enviado",
             )
 
+        # Mark as accepted and flush — the commit is done inside create_from_budget
         await self._repo.update(budget, {"status": BudgetStatus.ACCEPTED})
-        await self._session.commit()
+        await self._session.flush()
         logger.info("Budget accepted id=%s", budget_id)
+
+        work_order_service = WorkOrderService(self._session)
+        work_order = await work_order_service.create_from_budget(budget_id)
 
         return {
             "budget_id": str(budget_id),
             "status": "accepted",
-            "message": "Presupuesto aceptado. La obra se creará desde el módulo de Obras.",
-            "work_order_id": None,
+            "work_order_id": str(work_order.id),
+            "work_order_number": work_order.work_order_number,
+            "message": "Presupuesto aceptado y obra creada correctamente",
         }
 
     # ── PDF generation ────────────────────────────────────────────────────────

@@ -6,7 +6,8 @@ import { SuppliersPage } from "@/features/suppliers/components/SuppliersPage";
 import { InventoryPage } from "@/features/inventory/components/InventoryPage";
 import { CustomersPage } from "@/features/customers/components/CustomersPage"
 import { SiteVisitsPage } from "@/features/site-visits/components/SiteVisitsPage";
-import { BudgetsPage } from "@/features/budgets/components/BudgetsPage";
+import { BudgetsPage } from "@/features/budgets/components/BudgetsPage"
+import { WorkOrdersPage } from "@/features/work-orders/components/WorkOrdersPage";
 
 // Placeholder page until each module is implemented
 const ComingSoon = ({ title }: { title: string }) => (
@@ -40,7 +41,7 @@ export default function App() {
         <Route path="clientes/*" element={<CustomersPage />} />
         <Route path="visitas/*" element={<SiteVisitsPage />} />
         <Route path="presupuestos/*" element={<BudgetsPage />} />
-        <Route path="obras/*" element={<ComingSoon title="Obras" />} />
+        <Route path="obras/*" element={<WorkOrdersPage />} />
         <Route path="facturacion/*" element={<ComingSoon title="Facturación" />} />
         <Route path="inventario/*" element={<InventoryPage />} />
         <Route path="proveedores/*" element={<SuppliersPage />} />

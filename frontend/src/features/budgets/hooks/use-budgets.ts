@@ -158,12 +158,19 @@ export function useAcceptBudget() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (id: string) => {
-      const { data } = await apiClient.post(`/api/v1/budgets/${id}/accept`)
+      const { data } = await apiClient.post<{
+        budget_id: string
+        status: string
+        work_order_id: string | null
+        work_order_number: string | null
+        message: string
+      }>(`/api/v1/budgets/${id}/accept`)
       return data
     },
     onSuccess: (_data, id) => {
       queryClient.invalidateQueries({ queryKey: budgetKeys.detail(id) })
       queryClient.invalidateQueries({ queryKey: budgetKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: ['work-orders'] })
     },
   })
 }

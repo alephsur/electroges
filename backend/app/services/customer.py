@@ -412,8 +412,34 @@ class CustomerService:
         return events
 
     async def _get_work_order_events(self, customer_id: uuid.UUID) -> list[TimelineEvent]:
-        # TODO: implement when WorkOrder module exists
-        return []
+        from app.repositories.work_order import WorkOrderRepository
+
+        repo = WorkOrderRepository(self._session)
+        orders = await repo.get_by_customer(customer_id)
+        events = []
+        for o in orders:
+            events.append(TimelineEvent(
+                event_type="work_order_created",
+                event_date=o.created_at,
+                title=f"Obra {o.work_order_number}",
+                subtitle="Estado: " + o.status.value + (
+                    f" · {o.address}" if o.address else ""
+                ),
+                reference_id=o.id,
+                reference_type="work_order",
+                status=o.status.value,
+            ))
+            if o.status.value == "closed":
+                events.append(TimelineEvent(
+                    event_type="work_order_closed",
+                    event_date=o.updated_at,
+                    title=f"Obra {o.work_order_number} cerrada",
+                    subtitle=None,
+                    reference_id=o.id,
+                    reference_type="work_order",
+                    status="closed",
+                ))
+        return events
 
     async def _get_invoice_events(self, customer_id: uuid.UUID) -> list[TimelineEvent]:
         # TODO: implement when Invoice module exists

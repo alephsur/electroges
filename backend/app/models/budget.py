@@ -96,11 +96,10 @@ class Budget(UUIDMixin, TimestampMixin, Base):
         back_populates="parent_budget",
         foreign_keys=[parent_budget_id],
     )
-    # work_order relationship activated when WorkOrder module is implemented
-    # work_order: Mapped["WorkOrder | None"] = relationship(
-    #     back_populates="origin_budget",
-    #     foreign_keys=[work_order_id],
-    # )
+    work_order: Mapped["WorkOrder | None"] = relationship(
+        back_populates="origin_budget",
+        foreign_keys="WorkOrder.origin_budget_id",
+    )
 
 
 class BudgetLine(UUIDMixin, TimestampMixin, Base):
@@ -148,15 +147,14 @@ class BudgetLine(UUIDMixin, TimestampMixin, Base):
     budget: Mapped[Budget] = relationship(back_populates="lines")
     inventory_item: Mapped[InventoryItem | None] = relationship()
 
-    # Forward references for WorkOrder module (activated when implemented)
-    # task: Mapped["Task | None"] = relationship(
-    #     back_populates="origin_budget_line",
-    #     foreign_keys="Task.origin_budget_line_id",
-    # )
-    # task_material: Mapped["TaskMaterial | None"] = relationship(
-    #     back_populates="origin_budget_line",
-    #     foreign_keys="TaskMaterial.origin_budget_line_id",
-    # )
+    task: Mapped["Task | None"] = relationship(
+        back_populates="origin_budget_line",
+        foreign_keys="Task.origin_budget_line_id",
+    )
+    task_material: Mapped["TaskMaterial | None"] = relationship(
+        back_populates="origin_budget_line",
+        foreign_keys="TaskMaterial.origin_budget_line_id",
+    )
 
 
 # Resolve forward references

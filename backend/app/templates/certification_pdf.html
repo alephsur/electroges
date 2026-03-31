@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Helvetica Neue', Arial, sans-serif; font-size: 10pt;
+         color: #1a1a1a; line-height: 1.4; }
+
+  @page { size: A4; margin: 15mm 15mm 20mm 15mm; }
+  @page { @bottom-center { content: "Página " counter(page) " de " counter(pages);
+                             font-size: 8pt; color: #888; } }
+
+  .header { display: flex; justify-content: space-between;
+            align-items: flex-start; padding-bottom: 12pt;
+            border-bottom: 2pt solid #1a56db; margin-bottom: 16pt; }
+  .company-logo { max-height: 50pt; max-width: 120pt; }
+  .company-info { text-align: right; font-size: 9pt; color: #444; }
+  .company-name { font-size: 13pt; font-weight: bold; color: #1a1a1a; }
+
+  .doc-meta { display: flex; justify-content: space-between; margin-bottom: 16pt; }
+  .doc-title { font-size: 18pt; font-weight: bold; color: #1a56db; }
+  .doc-subtitle { font-size: 10pt; color: #444; margin-top: 3pt; }
+  .doc-number { font-size: 11pt; color: #444; margin-top: 4pt; }
+  .doc-dates { text-align: right; font-size: 9pt; color: #444; }
+
+  .client-block { background: #f8f9fa; border-left: 3pt solid #1a56db;
+                  padding: 8pt 10pt; margin-bottom: 8pt; }
+  .client-label { font-size: 8pt; text-transform: uppercase;
+                  color: #888; margin-bottom: 3pt; }
+  .client-name { font-size: 11pt; font-weight: bold; }
+
+  .work-order-block { background: #f0f9ff; border-left: 3pt solid #7dd3fc;
+                      padding: 6pt 10pt; margin-bottom: 16pt; font-size: 9pt; color: #444; }
+
+  .info-box { background: #fefce8; border: 0.5pt solid #fde68a;
+              padding: 8pt 10pt; margin-bottom: 16pt; font-size: 9pt; }
+
+  table { width: 100%; border-collapse: collapse; margin-bottom: 12pt; font-size: 9pt; }
+  thead tr { background: #1a56db; color: white; }
+  thead th { padding: 6pt 8pt; text-align: left; font-weight: 600; }
+  thead th:last-child { text-align: right; }
+  tbody tr { border-bottom: 0.5pt solid #e5e7eb; }
+  tbody tr:nth-child(even) { background: #f9fafb; }
+  tbody td { padding: 5pt 8pt; vertical-align: top; }
+  tbody td:last-child { text-align: right; font-weight: 500; }
+
+  .task-status { font-size: 7.5pt; color: #6b7280; margin-top: 2pt; }
+
+  .totals-block { margin-left: auto; width: 200pt; margin-bottom: 20pt; }
+  .totals-row { display: flex; justify-content: space-between;
+                padding: 3pt 0; font-size: 9pt; }
+  .totals-divider { border-top: 0.5pt solid #d1d5db; margin: 4pt 0; }
+  .totals-row.total { font-size: 12pt; font-weight: bold;
+                      border-top: 2pt solid #1a56db; padding-top: 6pt; }
+
+  .notes-block { background: #fffbeb; border: 0.5pt solid #fcd34d;
+                 padding: 8pt; margin-bottom: 16pt; font-size: 9pt; }
+
+  .signature-block { display: flex; justify-content: space-between;
+                     margin-top: 24pt; margin-bottom: 16pt; }
+  .signature-box { width: 45%; border-top: 0.5pt solid #9ca3af;
+                   padding-top: 4pt; font-size: 8pt; color: #6b7280; }
+
+  .footer { border-top: 0.5pt solid #d1d5db; padding-top: 8pt;
+            font-size: 7.5pt; color: #6b7280; margin-top: auto; }
+
+  .status-badge { display: inline-block; padding: 2pt 6pt; border-radius: 3pt;
+                  font-size: 8pt; font-weight: 600; }
+  .status-issued { background: #dbeafe; color: #1e40af; }
+  .status-invoiced { background: #d1fae5; color: #065f46; }
+  .status-draft { background: #f3f4f6; color: #374151; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div>
+    {% if company.logo_path %}
+      <img src="file://{{ logo_abs_path }}" class="company-logo" alt="Logo">
+    {% else %}
+      <div class="company-name">{{ company.company_name }}</div>
+    {% endif %}
+  </div>
+  <div class="company-info">
+    <div class="company-name">{{ company.company_name }}</div>
+    {% if company.tax_id %}<div>CIF: {{ company.tax_id }}</div>{% endif %}
+    {% if company.address %}<div>{{ company.address }}</div>{% endif %}
+    {% if company.city %}<div>{{ company.postal_code }} {{ company.city }}</div>{% endif %}
+    {% if company.phone %}<div>Tel: {{ company.phone }}</div>{% endif %}
+    {% if company.email %}<div>{{ company.email }}</div>{% endif %}
+  </div>
+</div>
+
+<!-- DOCUMENT META -->
+<div class="doc-meta">
+  <div>
+    <div class="doc-title">CERTIFICACIÓN DE AVANCE</div>
+    <div class="doc-subtitle">Conformidad de trabajos realizados</div>
+    <div class="doc-number">{{ cert.certification_number }}</div>
+  </div>
+  <div class="doc-dates">
+    <div><strong>Fecha:</strong> {{ cert.created_at | date }}</div>
+    <div style="margin-top:4pt">
+      <span class="status-badge status-{{ cert.status }}">
+        {% if cert.status == 'issued' %}Emitida
+        {% elif cert.status == 'invoiced' %}Facturada
+        {% else %}Borrador{% endif %}
+      </span>
+    </div>
+  </div>
+</div>
+
+<!-- CLIENT BLOCK -->
+<div class="client-block">
+  <div class="client-label">Cliente</div>
+  <div class="client-name">{{ customer.name }}</div>
+  {% if customer.tax_id %}<div>{{ customer.tax_id }}</div>{% endif %}
+  {% if customer.email %}<div>{{ customer.email }}</div>{% endif %}
+  {% if customer.phone %}<div>Tel: {{ customer.phone }}</div>{% endif %}
+</div>
+
+<!-- WORK ORDER REFERENCE -->
+<div class="work-order-block">
+  <strong>Obra:</strong> {{ work_order.work_order_number }}
+  {% if work_order.address %} · {{ work_order.address }}{% endif %}
+</div>
+
+<!-- EXPLANATION -->
+<div class="info-box">
+  Por medio del presente documento se certifica la realización y conformidad de los
+  trabajos indicados a continuación, correspondientes a la obra
+  <strong>{{ work_order.work_order_number }}</strong>.
+  Se solicita la firma del cliente o jefe de obra en señal de conformidad.
+</div>
+
+<!-- CERTIFIED TASKS TABLE -->
+<table>
+  <thead>
+    <tr>
+      <th style="width:70%">Trabajo certificado</th>
+      <th style="width:30%; text-align:right">Importe</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for item in cert.items %}
+    <tr>
+      <td>
+        {{ item.task_name }}
+        {% if item.notes %}
+        <div class="task-status">{{ item.notes }}</div>
+        {% endif %}
+      </td>
+      <td>{{ item.amount | currency }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<!-- TOTAL -->
+<div class="totals-block">
+  <div class="totals-divider"></div>
+  <div class="totals-row total">
+    <span>TOTAL CERTIFICADO</span>
+    <span>{{ total_amount | currency }}</span>
+  </div>
+</div>
+
+<!-- NOTES -->
+{% if cert.notes %}
+<div class="notes-block">
+  <strong>Observaciones:</strong><br>
+  {{ cert.notes }}
+</div>
+{% endif %}
+
+<!-- SIGNATURE BLOCK -->
+<div class="signature-block">
+  <div class="signature-box">
+    <div>Conforme — cliente / jefe de obra</div>
+    <div style="margin-top:2pt">Nombre: ________________________________</div>
+    <div style="margin-top:2pt">DNI: ___________________________________</div>
+    <div style="margin-top:2pt">Fecha: _________________________________</div>
+    <div style="margin-top:2pt">Firma: _________________________________</div>
+  </div>
+  <div class="signature-box" style="text-align:right">
+    <div>{{ company.company_name }}</div>
+    {% if company.tax_id %}<div>CIF: {{ company.tax_id }}</div>{% endif %}
+    <div style="margin-top:2pt">Firma: _________________________________</div>
+  </div>
+</div>
+
+{% if company.general_conditions %}
+<div class="footer">{{ company.general_conditions }}</div>
+{% endif %}
+
+</body>
+</html>

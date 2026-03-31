@@ -146,9 +146,9 @@ class InventoryService:
             is_active=item.is_active,
             created_at=item.created_at,
             updated_at=item.updated_at,
-            stock_reserved=Decimal("0"),
-            stock_available=item.stock_current,
-            low_stock_alert=item.stock_current <= item.stock_min,
+            stock_reserved=item.stock_reserved,
+            stock_available=item.stock_current - item.stock_reserved,
+            low_stock_alert=(item.stock_current - item.stock_reserved) <= item.stock_min,
         )
 
     # ------------------------------------------------------------------ suppliers
@@ -357,7 +357,8 @@ class InventoryService:
         Uses direct construction (not model_validate) to avoid Pydantic trying to
         auto-validate ORM relationships that contain computed fields (e.g. supplier_name).
         """
-        stock_reserved = Decimal("0")  # TODO: sum TaskMaterial.estimated_quantity when Obras is implemented
+        # Use the atomically-maintained stock_reserved column (updated by WorkOrderService)
+        stock_reserved = item.stock_reserved
         stock_available = item.stock_current - stock_reserved
         low_stock_alert = stock_available <= item.stock_min
 
