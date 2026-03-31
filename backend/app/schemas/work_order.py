@@ -172,7 +172,7 @@ class WorkOrderUpdate(BaseModel):
 
 
 class WorkOrderStatusUpdate(BaseModel):
-    status: Literal["active", "closed", "cancelled"]
+    status: Literal["draft", "active", "pending_closure", "closed", "cancelled"]
     notes: str | None = None
 
 

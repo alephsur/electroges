@@ -1,6 +1,8 @@
 import { useState } from 'react'
-import { ArrowLeft, MapPin } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { ArrowLeft, MapPin, ExternalLink } from 'lucide-react'
 import { getApiErrorMessage } from '@/shared/hooks/use-api-error'
+import { useBudgetStore } from '@/features/budgets/store/budget-store'
 import { useUpdateWorkOrderStatus } from '../hooks/use-work-orders'
 import { WorkOrderStatusBadge } from './WorkOrderStatusBadge'
 import { WorkOrderKPIPanel } from './WorkOrderKPIPanel'
@@ -62,7 +64,15 @@ export function WorkOrderDetail({
   activeTab,
   setActiveTab,
 }: WorkOrderDetailProps) {
+  const navigate = useNavigate()
+  const setSelectedBudgetId = useBudgetStore((s) => s.setSelectedBudgetId)
   const updateStatus = useUpdateWorkOrderStatus()
+
+  const handleOpenBudget = () => {
+    if (!workOrder.origin_budget_id) return
+    setSelectedBudgetId(workOrder.origin_budget_id)
+    navigate('/presupuestos')
+  }
 
   const buttons = STATUS_BUTTONS[workOrder.status as WorkOrderStatus] ?? []
 
@@ -103,7 +113,13 @@ export function WorkOrderDetail({
                 <>
                   <span className="mx-1.5 text-gray-300">·</span>
                   Presupuesto{' '}
-                  <span className="font-medium">{workOrder.budget_number}</span>
+                  <button
+                    onClick={handleOpenBudget}
+                    className="inline-flex items-center gap-0.5 font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                  >
+                    {workOrder.budget_number}
+                    <ExternalLink size={11} className="mb-0.5" />
+                  </button>
                 </>
               )}
             </p>
