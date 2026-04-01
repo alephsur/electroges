@@ -106,8 +106,10 @@ class WorkOrder(UUIDMixin, TimestampMixin, Base):
         cascade="all, delete-orphan",
         order_by="DeliveryNote.created_at",
     )
-    # Forward reference for Invoicing module — activated when Invoice module is implemented
-    # invoices: Mapped[list["Invoice"]] = relationship(back_populates="work_order")
+    invoices: Mapped[list["Invoice"]] = relationship(
+        back_populates="work_order",
+        order_by="Invoice.issue_date.desc()",
+    )
 
 
 class Task(UUIDMixin, TimestampMixin, Base):
@@ -334,3 +336,4 @@ from app.models.budget import Budget, BudgetLine  # noqa: E402
 from app.models.customer import Customer  # noqa: E402
 from app.models.inventory_item import InventoryItem  # noqa: E402
 from app.models.purchase_order import PurchaseOrder  # noqa: E402
+from app.models.invoice import Invoice  # noqa: E402

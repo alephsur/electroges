@@ -207,7 +207,7 @@ src/
 | Visitas Técnicas | ✅ Completado | |
 | Presupuestos | ✅ Completado | Incluye versiones y margen interno |
 | Obras + Tasks + TaskMaterials | ✅ Completado | Core del sistema |
-| Facturación | ⬜ Pendiente | |
+| Facturación | ✅ Completado | Pagos parciales, rectificativas, PDF, recordatorio |
 | Inventario | ⬜ Pendiente | |
 | Proveedores | ✅ Completado | |
 | Dashboard | ⬜ Pendiente | |

@@ -22,5 +22,4 @@ from app.models.work_order import (  # noqa: F401
     WorkOrderPurchaseOrder, Certification, CertificationItem,
 )
 
-# Phase 1 — to be added as each module is implemented
-# from app.models.invoice import Invoice
+from app.models.invoice import Invoice, InvoiceLine, Payment  # noqa: F401
