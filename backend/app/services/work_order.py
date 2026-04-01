@@ -337,7 +337,7 @@ class WorkOrderService:
             "draft": {"active", "cancelled"},
             "active": {"pending_closure", "cancelled"},
             "pending_closure": {"closed", "active"},
-            "closed": set(),
+            "closed": {"active"},
             "cancelled": set(),
         }
         if new not in valid.get(current, set()):
