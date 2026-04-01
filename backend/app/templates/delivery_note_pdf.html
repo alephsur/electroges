@@ -153,12 +153,24 @@
   </tbody>
 </table>
 
-<!-- TOTAL -->
+<!-- TOTALS -->
 <div class="totals-block">
+  <div class="totals-row">
+    <span>Subtotal</span>
+    <span>{{ totals.subtotal | currency }}</span>
+  </div>
   <div class="totals-divider"></div>
+  <div class="totals-row">
+    <span>Base imponible</span>
+    <span>{{ totals.subtotal | currency }}</span>
+  </div>
+  <div class="totals-row">
+    <span>IVA ({{ totals.tax_rate | number }}%)</span>
+    <span>{{ totals.tax_amount | currency }}</span>
+  </div>
   <div class="totals-row total">
     <span>TOTAL</span>
-    <span>{{ total_amount | currency }}</span>
+    <span>{{ totals.total | currency }}</span>
   </div>
 </div>
 

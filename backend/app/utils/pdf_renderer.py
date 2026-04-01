@@ -39,7 +39,7 @@ def _get_jinja_env() -> Environment:
     return env
 
 
-def render_delivery_note_pdf_html(note, work_order, company, customer, total_amount) -> str:
+def render_delivery_note_pdf_html(note, work_order, company, customer, totals: dict) -> str:
     """Renders the delivery note PDF HTML using the Jinja2 template."""
     env = _get_jinja_env()
     template = env.get_template("delivery_note_pdf.html")
@@ -53,7 +53,7 @@ def render_delivery_note_pdf_html(note, work_order, company, customer, total_amo
         work_order=work_order,
         company=company,
         customer=customer,
-        total_amount=total_amount,
+        totals=totals,
         logo_abs_path=logo_abs_path,
     )
 

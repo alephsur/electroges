@@ -1522,17 +1522,26 @@ class WorkOrderService:
         customer = await self._customer_repo.get_by_id(order.customer_id)
         company = await CompanySettingsRepository(self._session).get()
 
-        total_amount = sum(
+        tax_rate = company.default_tax_rate
+        subtotal = sum(
             (item.quantity * item.unit_price for item in (note.items or [])),
             Decimal("0.0"),
         )
+        tax_amount = (subtotal * tax_rate / 100).quantize(Decimal("0.01"))
+        total = (subtotal + tax_amount).quantize(Decimal("0.01"))
+        totals = {
+            "subtotal": subtotal.quantize(Decimal("0.01")),
+            "tax_rate": tax_rate,
+            "tax_amount": tax_amount,
+            "total": total,
+        }
 
         html = render_delivery_note_pdf_html(
             note=note,
             work_order=order,
             company=company,
             customer=customer,
-            total_amount=total_amount,
+            totals=totals,
         )
         pdf_bytes = HTML(string=html).write_pdf()
 
