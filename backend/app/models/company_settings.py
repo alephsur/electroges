@@ -36,3 +36,6 @@ class CompanySettings(TimestampMixin, Base):
     default_validity_days: Mapped[int] = mapped_column(
         Integer, nullable=False, default=30, server_default="30"
     )
+    default_payment_days: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=30, server_default="30"
+    )

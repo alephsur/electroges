@@ -39,7 +39,7 @@ def _get_jinja_env() -> Environment:
     return env
 
 
-def render_delivery_note_pdf_html(note, work_order, company, customer, total_amount) -> str:
+def render_delivery_note_pdf_html(note, work_order, company, customer, totals: dict) -> str:
     """Renders the delivery note PDF HTML using the Jinja2 template."""
     env = _get_jinja_env()
     template = env.get_template("delivery_note_pdf.html")
@@ -53,7 +53,7 @@ def render_delivery_note_pdf_html(note, work_order, company, customer, total_amo
         work_order=work_order,
         company=company,
         customer=customer,
-        total_amount=total_amount,
+        totals=totals,
         logo_abs_path=logo_abs_path,
     )
 
@@ -73,6 +73,35 @@ def render_certification_pdf_html(cert, work_order, company, customer, total_amo
         company=company,
         customer=customer,
         total_amount=total_amount,
+        logo_abs_path=logo_abs_path,
+    )
+
+
+def render_invoice_pdf_html(invoice, company, totals) -> str:
+    """
+    Renders the invoice PDF HTML using the Jinja2 template.
+
+    IMPORTANT: `totals` must be an InvoiceTotals instance.
+    Internal cost or margin data must NOT be included.
+    """
+    env = _get_jinja_env()
+    template = env.get_template("invoice_pdf.html")
+
+    has_line_discounts = any(
+        float(line.line_discount_pct) > 0 for line in (invoice.lines or [])
+    )
+
+    logo_abs_path = None
+    if company.logo_path:
+        logo_abs_path = str(Path(company.logo_path).resolve())
+
+    return template.render(
+        invoice=invoice,
+        company=company,
+        customer=invoice.customer,
+        totals=totals,
+        lines=invoice.lines or [],
+        has_line_discounts=has_line_discounts,
         logo_abs_path=logo_abs_path,
     )
 

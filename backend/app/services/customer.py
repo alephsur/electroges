@@ -1,5 +1,6 @@
 import logging
 import uuid
+from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 
@@ -442,5 +443,47 @@ class CustomerService:
         return events
 
     async def _get_invoice_events(self, customer_id: uuid.UUID) -> list[TimelineEvent]:
-        # TODO: implement when Invoice module exists
-        return []
+        from datetime import timezone
+
+        from app.models.invoice import InvoiceStatus
+        from app.repositories.invoice import InvoiceRepository
+        from app.services.invoice import InvoiceService
+
+        invoice_repo = InvoiceRepository(self._session)
+        invoices = await invoice_repo.get_by_customer(customer_id)
+        svc = InvoiceService(self._session)
+        events = []
+
+        for inv in invoices:
+            totals = svc._calculate_totals(inv)
+            effective = svc._get_effective_status(inv)
+            events.append(TimelineEvent(
+                event_type="invoice_issued",
+                event_date=datetime.combine(
+                    inv.issue_date, datetime.min.time()
+                ).replace(tzinfo=timezone.utc),
+                title=f"Factura {inv.invoice_number}",
+                subtitle=f"{totals.total:.2f}€ · {effective}",
+                reference_id=inv.id,
+                reference_type="invoice",
+                amount=totals.total,
+                status=effective,
+            ))
+            if inv.status == InvoiceStatus.PAID and inv.payments:
+                last_payment = max(
+                    inv.payments, key=lambda p: p.payment_date
+                )
+                events.append(TimelineEvent(
+                    event_type="invoice_paid",
+                    event_date=datetime.combine(
+                        last_payment.payment_date,
+                        datetime.min.time(),
+                    ).replace(tzinfo=timezone.utc),
+                    title=f"Cobro de factura {inv.invoice_number}",
+                    subtitle=f"{totals.total:.2f}€",
+                    reference_id=inv.id,
+                    reference_type="invoice",
+                    amount=totals.total,
+                    status="paid",
+                ))
+        return events

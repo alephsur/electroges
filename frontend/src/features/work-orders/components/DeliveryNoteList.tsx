@@ -7,11 +7,7 @@ import {
   useIssueDeliveryNote,
   useUpdateDeliveryNote,
 } from '../hooks/use-delivery-notes'
-import {
-  useDownloadPdf,
-  useOpenWhatsApp,
-} from '../hooks/use-document-actions'
-import { SendEmailModal } from './SendEmailModal'
+import { useDownloadPdf } from '../hooks/use-document-actions'
 import type {
   DeliveryNote,
   DeliveryNoteItemCreate,
@@ -35,6 +31,41 @@ const LINE_TYPE_LABELS: Record<DeliveryNoteLineType, string> = {
   material: 'Material',
   labor: 'Mano de obra',
   other: 'Otro',
+}
+
+// ── WhatsApp / Email helpers ──────────────────────────────────────────────────
+
+function fmtQty(n: number) {
+  return Number(n).toLocaleString('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 3 })
+}
+
+function buildDNMessage(note: DeliveryNote, workOrderNumber: string): string {
+  const lines = note.items.map(
+    (i) => `• ${i.description}: ${fmtQty(i.quantity)} ${i.unit} × ${fmt(i.unit_price)} € = ${fmt(i.subtotal)} €`,
+  )
+  return [
+    `Albarán ${note.delivery_note_number} (Obra ${workOrderNumber})`,
+    `Fecha de entrega: ${note.delivery_date}`,
+    note.requested_by ? `Solicitado por: ${note.requested_by}` : '',
+    '',
+    ...lines,
+    '',
+    `Total: ${fmt(note.total_amount)} €`,
+    note.notes ? `\nNotas: ${note.notes}` : '',
+  ]
+    .filter((l) => l !== undefined)
+    .join('\n')
+    .trim()
+}
+
+function whatsappUrl(phone: string, message: string): string {
+  const clean = phone.replace(/[\s\-().+]/g, '')
+  const intl = clean.startsWith('0') ? `34${clean.slice(1)}` : clean
+  return `https://wa.me/${intl}?text=${encodeURIComponent(message)}`
+}
+
+function mailtoUrl(email: string, subject: string, body: string): string {
+  return `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
 }
 
 // ── Empty line template ────────────────────────────────────────────────────────
@@ -281,6 +312,7 @@ function DeliveryNoteForm({ workOrderId, initial, onClose }: DeliveryNoteFormPro
 interface DeliveryNoteCardProps {
   note: DeliveryNote
   workOrderId: string
+  workOrderNumber: string
   customerEmail?: string | null
   customerPhone?: string | null
 }
@@ -288,19 +320,19 @@ interface DeliveryNoteCardProps {
 function DeliveryNoteCard({
   note,
   workOrderId,
+  workOrderNumber,
   customerEmail,
   customerPhone,
 }: DeliveryNoteCardProps) {
   const [expanded, setExpanded] = useState(false)
   const [editing, setEditing] = useState(false)
-  const [showEmail, setShowEmail] = useState(false)
   const issueNote = useIssueDeliveryNote()
   const deleteNote = useDeleteDeliveryNote()
   const { download, isDownloading } = useDownloadPdf()
-  const { open: openWhatsApp, isLoading: isWhatsAppLoading } = useOpenWhatsApp()
 
   const baseUrl = `/api/v1/work-orders/${workOrderId}/delivery-notes/${note.id}`
   const cfg = STATUS_BADGE[note.status] ?? STATUS_BADGE.draft
+  const message = buildDNMessage(note, workOrderNumber)
 
   if (editing) {
     return (
@@ -313,16 +345,6 @@ function DeliveryNoteCard({
   }
 
   return (
-    <>
-      {showEmail && (
-        <SendEmailModal
-          apiUrl={`${baseUrl}/send-email`}
-          defaultEmail={customerEmail ?? ''}
-          documentLabel={`albarán ${note.delivery_note_number}`}
-          onClose={() => setShowEmail(false)}
-        />
-      )}
-
     <div className="rounded-xl border border-gray-100 bg-white p-4">
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
@@ -370,26 +392,29 @@ function DeliveryNoteCard({
             <Download size={14} />
           </button>
 
-          {/* Email */}
-          <button
-            onClick={() => setShowEmail(true)}
-            title="Enviar por email"
-            className="rounded-md border border-gray-200 p-1.5 text-gray-500 hover:bg-gray-50"
-          >
-            <Mail size={14} />
-          </button>
+          {/* Email — opens default mail client, no SMTP needed */}
+          {customerEmail && (
+            <a
+              href={mailtoUrl(customerEmail, `Albarán ${note.delivery_note_number}`, message)}
+              title={`Email a ${customerEmail}`}
+              className="rounded-md border border-gray-200 p-1.5 text-blue-500 hover:border-blue-300 hover:bg-blue-50"
+            >
+              <Mail size={14} />
+            </a>
+          )}
 
-          {/* WhatsApp */}
-          <button
-            onClick={() =>
-              openWhatsApp(`${baseUrl}/whatsapp-link`, customerPhone ?? undefined)
-            }
-            disabled={isWhatsAppLoading}
-            title="Enviar por WhatsApp"
-            className="rounded-md border border-green-200 p-1.5 text-green-600 hover:bg-green-50 disabled:opacity-50"
-          >
-            <MessageCircle size={14} />
-          </button>
+          {/* WhatsApp — opens wa.me link directly, no backend needed */}
+          {customerPhone && (
+            <a
+              href={whatsappUrl(customerPhone, message)}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={`WhatsApp a ${customerPhone}`}
+              className="rounded-md border border-green-200 p-1.5 text-green-600 hover:bg-green-50"
+            >
+              <MessageCircle size={14} />
+            </a>
+          )}
 
           {note.status === 'draft' && (
             <>
@@ -485,7 +510,6 @@ function DeliveryNoteCard({
         </div>
       )}
     </div>
-    </>
   )
 }
 
@@ -517,6 +541,7 @@ export function DeliveryNoteList({
           key={note.id}
           note={note}
           workOrderId={workOrder.id}
+          workOrderNumber={workOrder.work_order_number}
           customerEmail={customerEmail}
           customerPhone={customerPhone}
         />

@@ -65,6 +65,10 @@ class Customer(UUIDMixin, TimestampMixin, Base):
         back_populates="customer",
         order_by="WorkOrder.created_at.desc()",
     )
+    invoices: Mapped[list["Invoice"]] = relationship(
+        back_populates="customer",
+        order_by="Invoice.issue_date.desc()",
+    )
 
 
 class CustomerAddress(UUIDMixin, TimestampMixin, Base):
@@ -101,3 +105,7 @@ class CustomerDocument(UUIDMixin, TimestampMixin, Base):
     document_type: Mapped[str] = mapped_column(String(50), nullable=False, default="other")
 
     customer: Mapped[Customer] = relationship(back_populates="documents")
+
+
+# Resolve forward references
+from app.models.invoice import Invoice  # noqa: E402, F401

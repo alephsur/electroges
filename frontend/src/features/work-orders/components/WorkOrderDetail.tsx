@@ -38,6 +38,9 @@ const STATUS_BUTTONS: Partial<
     { label: 'Cerrar obra', next: 'closed', variant: 'primary' },
     { label: 'Reabrir', next: 'active', variant: 'secondary' },
   ],
+  closed: [
+    { label: 'Reabrir obra', next: 'active', variant: 'secondary' },
+  ],
 }
 
 const VARIANT_CLASSES: Record<string, string> = {
