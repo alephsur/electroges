@@ -67,7 +67,7 @@ export function InventoryPickerModal({ onSelect, onClose }: InventoryPickerModal
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium text-gray-800 truncate">{item.name}</span>
                       {item.low_stock_alert && (
-                        <AlertTriangle size={12} className="shrink-0 text-amber-500" title="Stock bajo" />
+                        <AlertTriangle size={12} className="shrink-0 text-amber-500" />
                       )}
                     </div>
                     {item.description && (

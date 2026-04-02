@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, MapPin, ExternalLink } from 'lucide-react'
 import { getApiErrorMessage } from '@/shared/hooks/use-api-error'

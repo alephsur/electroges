@@ -39,10 +39,6 @@ function fmt(n: number) {
   }).format(n)
 }
 
-function today() {
-  return new Date().toISOString().split('T')[0]
-}
-
 interface Props {
   preselectedWorkOrderId?: string
   preselectedCertificationIds?: string[]

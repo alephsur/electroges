@@ -6,7 +6,6 @@ import {
   Hammer,
   FileText,
   AlertCircle,
-  Clock,
   CheckCircle,
   ShoppingCart,
 } from 'lucide-react'

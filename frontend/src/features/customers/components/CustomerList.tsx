@@ -1,4 +1,4 @@
-import { Eye, Pencil, UserX } from 'lucide-react'
+import { Eye, UserX } from 'lucide-react'
 import { useCustomerStore } from '../store/customer-store'
 import { useDeactivateCustomer } from '../hooks/use-customers'
 import { CustomerTypeBadge } from './CustomerTypeBadge'

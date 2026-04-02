@@ -12,7 +12,7 @@ import {
   useOpenWhatsApp,
 } from '../hooks/use-document-actions'
 import { SendEmailModal } from './SendEmailModal'
-import type { Certification, WorkOrder } from '../types'
+import type { WorkOrder } from '../types'
 
 function fmt(n: number) {
   return n.toLocaleString('es-ES', {

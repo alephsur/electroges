@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '@/lib/api-client'
-import type { Certification, CertificationItem, Task } from '../types'
+import type { Certification, Task } from '../types'
 import { workOrderKeys } from './use-work-orders'
 
 export function useCertifiableTasks(workOrderId: string | null) {
