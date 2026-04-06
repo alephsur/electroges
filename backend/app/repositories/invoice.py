@@ -106,7 +106,7 @@ class InvoiceRepository(BaseRepository[Invoice]):
         total_result = await self.session.execute(count_stmt)
         total = total_result.scalar() or 0
 
-        stmt = stmt.order_by(Invoice.issue_date.desc()).offset(skip).limit(
+        stmt = stmt.order_by(Invoice.created_at.desc()).offset(skip).limit(
             limit
         )
         result = await self.session.execute(stmt)

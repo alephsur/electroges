@@ -47,7 +47,7 @@ class CustomerRepository(BaseRepository[Customer]):
             stmt = stmt.where(search_filter)
             count_stmt = count_stmt.where(search_filter)
 
-        stmt = stmt.order_by(Customer.name).offset(skip).limit(limit)
+        stmt = stmt.order_by(Customer.created_at.desc()).offset(skip).limit(limit)
 
         rows = await self.session.execute(stmt)
         total = await self.session.execute(count_stmt)

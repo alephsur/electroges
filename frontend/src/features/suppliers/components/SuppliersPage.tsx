@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Routes, Route, useParams, useMatch } from "react-router-dom";
+import { Routes, Route, useParams, useMatch, useNavigate } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
 import { cn } from "@/shared/utils/cn";
 import { SupplierList } from "./SupplierList";
 import { SupplierDetail } from "./SupplierDetail";
@@ -7,8 +8,23 @@ import { SupplierForm } from "./SupplierForm";
 
 function SupplierDetailRoute() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   if (!id) return null;
-  return <SupplierDetail supplierId={id} />;
+  return (
+    <>
+      {/* Mobile back button */}
+      <div className="lg:hidden border-b border-gray-100 px-4 py-2">
+        <button
+          onClick={() => navigate("/proveedores")}
+          className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700"
+        >
+          <ArrowLeft size={14} />
+          Proveedores
+        </button>
+      </div>
+      <SupplierDetail supplierId={id} />
+    </>
+  );
 }
 
 export function SuppliersPage() {
@@ -21,9 +37,9 @@ export function SuppliersPage() {
       {/* Left panel — list */}
       <div
         className={cn(
-          "flex flex-col min-w-0",
+          "flex flex-col min-w-0 border-r border-gray-100",
           isDetailSelected
-            ? "hidden lg:flex lg:w-80 lg:shrink-0 lg:border-r lg:border-gray-100"
+            ? "hidden lg:flex lg:w-[52%] lg:shrink-0"
             : "flex flex-1",
         )}
       >
@@ -35,7 +51,7 @@ export function SuppliersPage() {
       {/* Right panel — detail */}
       <div
         className={cn(
-          "flex-1 flex flex-col overflow-hidden min-w-0 p-4",
+          "flex-1 flex flex-col overflow-hidden min-w-0",
           !isDetailSelected && "hidden lg:flex",
         )}
       >

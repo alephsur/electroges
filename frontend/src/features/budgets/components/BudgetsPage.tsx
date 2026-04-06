@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { Routes, Route, useMatch, useParams } from 'react-router-dom'
 import { FileText, Plus, Search } from 'lucide-react'
 import { cn } from '@/shared/utils/cn'
-import { useBudgetStore } from '../store/budget-store'
+import { useBudgetStore, PAGE_SIZE_OPTIONS } from '../store/budget-store'
+import type { PageSize } from '../store/budget-store'
 import { useBudget, useBudgets } from '../hooks/use-budgets'
 import { BudgetList } from './BudgetList'
 import { BudgetDetail } from './BudgetDetail'
@@ -48,19 +49,25 @@ export function BudgetsPage() {
     searchQuery,
     statusFilter,
     showAllVersions,
+    page,
+    pageSize,
     setSearchQuery,
     setStatusFilter,
     setShowAllVersions,
+    setPage,
+    setPageSize,
   } = useBudgetStore()
 
   const { data, isLoading } = useBudgets({
     q: searchQuery || undefined,
     status: statusFilter ?? undefined,
     latest_only: !showAllVersions,
-    limit: 200,
+    skip: (page - 1) * pageSize,
+    limit: pageSize,
   })
 
   const budgets = data?.items ?? []
+  const totalPages = data ? Math.ceil(data.total / pageSize) : 1
   const detailMatch = useMatch('/presupuestos/:budgetId')
   const isDetailSelected = !!detailMatch
 
@@ -179,6 +186,49 @@ export function BudgetsPage() {
         <div className="flex-1 overflow-y-auto">
           <BudgetList budgets={budgets} isLoading={isLoading} />
         </div>
+
+        {/* Pagination */}
+        {!isLoading && data && data.total > 0 && (
+          <div className="shrink-0 border-t border-gray-100 px-4 py-2 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 text-xs text-gray-500">
+              <span>Por página:</span>
+              {PAGE_SIZE_OPTIONS.map((size) => (
+                <button
+                  key={size}
+                  onClick={() => setPageSize(size as PageSize)}
+                  className={`rounded px-2 py-0.5 font-medium transition-colors ${
+                    pageSize === size
+                      ? 'bg-gray-900 text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {size}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2 text-xs text-gray-500">
+              <span>
+                {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, data.total)} de {data.total}
+              </span>
+              <div className="flex gap-1">
+                <button
+                  onClick={() => setPage(page - 1)}
+                  disabled={page <= 1}
+                  className="rounded px-2 py-0.5 bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed font-medium"
+                >
+                  ‹
+                </button>
+                <button
+                  onClick={() => setPage(page + 1)}
+                  disabled={page >= totalPages}
+                  className="rounded px-2 py-0.5 bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed font-medium"
+                >
+                  ›
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Right panel — detail via nested routes */}

@@ -3,7 +3,8 @@ import { Routes, Route, useMatch, useParams } from 'react-router-dom'
 import { Plus, Search } from 'lucide-react'
 import { cn } from '@/shared/utils/cn'
 import { useInventoryItems } from '../hooks/use-inventory-items'
-import { useInventoryStore } from '../store/inventory-store'
+import { useInventoryStore, PAGE_SIZE_OPTIONS } from '../store/inventory-store'
+import type { PageSize } from '../store/inventory-store'
 import { useDebounce } from '@/shared/hooks/use-debounce'
 import { InventoryList } from './InventoryList'
 import { InventoryItemDetail } from './InventoryItemDetail'
@@ -26,8 +27,12 @@ export function InventoryPage() {
     searchQuery,
     supplierFilter,
     lowStockOnly,
+    page,
+    pageSize,
     setSearchQuery,
     setLowStockOnly,
+    setPage,
+    setPageSize,
   } = useInventoryStore()
 
   const [showCreateForm, setShowCreateForm] = useState(false)
@@ -42,11 +47,13 @@ export function InventoryPage() {
     q: searchQuery || undefined,
     supplier_id: supplierFilter ?? undefined,
     low_stock_only: lowStockOnly || undefined,
-    limit: 100,
+    skip: (page - 1) * pageSize,
+    limit: pageSize,
   })
 
   const items = data?.items ?? []
   const total = data?.total ?? 0
+  const totalPages = data ? Math.ceil(data.total / pageSize) : 1
 
   const detailMatch = useMatch('/inventario/:itemId')
   const isDetailSelected = !!detailMatch
@@ -103,6 +110,49 @@ export function InventoryPage() {
         <div className="flex-1 overflow-auto p-4">
           <InventoryList items={items} total={total} isLoading={isLoading} />
         </div>
+
+        {/* Pagination */}
+        {!isLoading && data && data.total > 0 && (
+          <div className="shrink-0 border-t border-gray-100 px-4 py-2 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 text-xs text-gray-500">
+              <span>Por página:</span>
+              {PAGE_SIZE_OPTIONS.map((size) => (
+                <button
+                  key={size}
+                  onClick={() => setPageSize(size as PageSize)}
+                  className={`rounded px-2 py-0.5 font-medium transition-colors ${
+                    pageSize === size
+                      ? 'bg-gray-900 text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {size}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2 text-xs text-gray-500">
+              <span>
+                {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, data.total)} de {data.total}
+              </span>
+              <div className="flex gap-1">
+                <button
+                  onClick={() => setPage(page - 1)}
+                  disabled={page <= 1}
+                  className="rounded px-2 py-0.5 bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed font-medium"
+                >
+                  ‹
+                </button>
+                <button
+                  onClick={() => setPage(page + 1)}
+                  disabled={page >= totalPages}
+                  className="rounded px-2 py-0.5 bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed font-medium"
+                >
+                  ›
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Right panel — detail via nested routes */}

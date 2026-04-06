@@ -80,7 +80,7 @@ class BudgetRepository(BaseRepository[Budget]):
             stmt = stmt.where(search_filter)
             count_stmt = count_stmt.where(search_filter)
 
-        stmt = stmt.order_by(Budget.issue_date.desc()).offset(skip).limit(limit)
+        stmt = stmt.order_by(Budget.created_at.desc()).offset(skip).limit(limit)
 
         rows = await self.session.execute(stmt)
         total_result = await self.session.execute(count_stmt)
