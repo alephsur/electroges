@@ -1,5 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { Routes, Route, useMatch, useParams } from 'react-router-dom'
 import { FileText, Plus, Search } from 'lucide-react'
+import { cn } from '@/shared/utils/cn'
 import { useBudgetStore } from '../store/budget-store'
 import { useBudget, useBudgets } from '../hooks/use-budgets'
 import { BudgetList } from './BudgetList'
@@ -18,13 +20,33 @@ const STATUS_OPTIONS: { value: BudgetStatus; label: string }[] = [
 
 type NewBudgetMode = 'direct' | 'from-visit' | null
 
+function BudgetDetailRoute() {
+  const { budgetId } = useParams<{ budgetId: string }>()
+  const { data: budget } = useBudget(budgetId ?? null)
+  const { setActiveTab, setShowAddLineForm } = useBudgetStore()
+
+  useEffect(() => {
+    setActiveTab('lineas')
+    setShowAddLineForm(false)
+  }, [budgetId])
+
+  if (!budget) {
+    return (
+      <div className="flex h-full items-center justify-center text-sm text-gray-400">
+        Cargando...
+      </div>
+    )
+  }
+
+  return <BudgetDetail budget={budget} />
+}
+
 export function BudgetsPage() {
   const [newBudgetMode, setNewBudgetMode] = useState<NewBudgetMode>(null)
   const [showModeSelector, setShowModeSelector] = useState(false)
   const {
     searchQuery,
     statusFilter,
-    selectedBudgetId,
     showAllVersions,
     setSearchQuery,
     setStatusFilter,
@@ -38,17 +60,20 @@ export function BudgetsPage() {
     limit: 200,
   })
 
-  const { data: selectedBudget } = useBudget(selectedBudgetId)
-
   const budgets = data?.items ?? []
+  const detailMatch = useMatch('/presupuestos/:budgetId')
+  const isDetailSelected = !!detailMatch
 
   return (
     <div className="flex h-full overflow-hidden">
-      {/* Left panel */}
+      {/* Left panel — list */}
       <div
-        className={`flex flex-col border-r border-gray-100 ${
-          selectedBudgetId ? 'w-[45%]' : 'flex-1'
-        } min-w-0`}
+        className={cn(
+          'flex flex-col border-r border-gray-100 min-w-0',
+          isDetailSelected
+            ? 'hidden lg:flex lg:w-[42%] lg:shrink-0'
+            : 'flex flex-1',
+        )}
       >
         {/* Header */}
         <div className="shrink-0 border-b border-gray-100 p-4">
@@ -66,7 +91,8 @@ export function BudgetsPage() {
                 className="flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
               >
                 <Plus size={15} />
-                Nuevo presupuesto
+                <span className="hidden sm:inline">Nuevo presupuesto</span>
+                <span className="sm:hidden">Nuevo</span>
               </button>
               {showModeSelector && (
                 <div className="absolute right-0 top-full mt-1 z-10 w-52 rounded-lg border border-gray-100 bg-white shadow-lg py-1">
@@ -155,18 +181,25 @@ export function BudgetsPage() {
         </div>
       </div>
 
-      {/* Right panel: detail */}
-      {selectedBudgetId && (
-        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-          {selectedBudget ? (
-            <BudgetDetail budget={selectedBudget} />
-          ) : (
-            <div className="flex h-full items-center justify-center text-sm text-gray-400">
-              Cargando...
-            </div>
-          )}
-        </div>
-      )}
+      {/* Right panel — detail via nested routes */}
+      <div
+        className={cn(
+          'flex-1 flex flex-col overflow-hidden min-w-0',
+          !isDetailSelected && 'hidden lg:flex',
+        )}
+      >
+        <Routes>
+          <Route
+            index
+            element={
+              <div className="flex h-full items-center justify-center text-sm text-gray-400">
+                Selecciona un presupuesto para ver el detalle
+              </div>
+            }
+          />
+          <Route path=":budgetId" element={<BudgetDetailRoute />} />
+        </Routes>
+      </div>
 
       {/* Modals */}
       {newBudgetMode === 'direct' && (

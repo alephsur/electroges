@@ -1,5 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { Routes, Route, useMatch, useParams, useNavigate } from 'react-router-dom'
 import { Plus, Search } from 'lucide-react'
+import { cn } from '@/shared/utils/cn'
 import { useDebounce } from '@/shared/hooks/use-debounce'
 import { useWorkOrder, useWorkOrders } from '../hooks/use-work-orders'
 import { useWorkOrderStore } from '../store/work-order-store'
@@ -17,17 +19,46 @@ const STATUS_OPTIONS: { value: WorkOrderStatus | ''; label: string }[] = [
   { value: 'cancelled', label: 'Cancelada' },
 ]
 
+function WorkOrderDetailRoute() {
+  const { workOrderId } = useParams<{ workOrderId: string }>()
+  const { setActiveTab } = useWorkOrderStore()
+  const { data: workOrder, isLoading } = useWorkOrder(workOrderId ?? null)
+
+  useEffect(() => {
+    setActiveTab('resumen')
+  }, [workOrderId])
+
+  if (isLoading) {
+    return (
+      <div className="flex h-full items-center justify-center bg-gray-50">
+        <p className="text-sm text-gray-400">Cargando…</p>
+      </div>
+    )
+  }
+
+  if (!workOrder) {
+    return (
+      <div className="flex h-full items-center justify-center bg-gray-50">
+        <p className="text-sm text-gray-400">Obra no encontrada.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="h-full overflow-y-auto bg-gray-50 p-5">
+      <WorkOrderDetail workOrder={workOrder} />
+    </div>
+  )
+}
+
 export function WorkOrdersPage() {
   const [showNewModal, setShowNewModal] = useState(false)
+  const navigate = useNavigate()
   const {
     searchQuery,
     statusFilter,
-    selectedWorkOrderId,
-    activeTab,
     setSearchQuery,
     setStatusFilter,
-    setSelectedWorkOrderId,
-    setActiveTab,
   } = useWorkOrderStore()
 
   const debouncedQuery = useDebounce(searchQuery, 300)
@@ -38,14 +69,20 @@ export function WorkOrdersPage() {
     limit: 100,
   })
 
-  const { data: workOrder, isLoading: isLoadingDetail } = useWorkOrder(
-    selectedWorkOrderId,
-  )
+  const detailMatch = useMatch('/obras/:workOrderId')
+  const isDetailSelected = !!detailMatch
 
   return (
     <div className="flex h-full gap-0">
       {/* Left panel — list */}
-      <div className="flex w-80 shrink-0 flex-col border-r border-gray-100 bg-white">
+      <div
+        className={cn(
+          'flex shrink-0 flex-col border-r border-gray-100 bg-white',
+          isDetailSelected
+            ? 'hidden lg:flex lg:w-80'
+            : 'flex w-full lg:w-80',
+        )}
+      >
         {/* Search + filters */}
         <div className="border-b border-gray-100 p-3 space-y-2">
           <div className="relative">
@@ -64,9 +101,7 @@ export function WorkOrdersPage() {
           <select
             value={statusFilter ?? ''}
             onChange={(e) =>
-              setStatusFilter(
-                (e.target.value as WorkOrderStatus) || null,
-              )
+              setStatusFilter((e.target.value as WorkOrderStatus) || null)
             }
             className="w-full rounded-lg border border-gray-200 py-2 px-3 text-sm focus:border-blue-400 focus:outline-none"
           >
@@ -92,11 +127,7 @@ export function WorkOrdersPage() {
               Cargando…
             </div>
           ) : (
-            <WorkOrderList
-              orders={listData?.items ?? []}
-              selectedId={selectedWorkOrderId}
-              onSelect={setSelectedWorkOrderId}
-            />
+            <WorkOrderList orders={listData?.items ?? []} />
           )}
         </div>
 
@@ -111,32 +142,26 @@ export function WorkOrdersPage() {
         </div>
       </div>
 
-      {/* Right panel — detail */}
-      <div className="flex-1 overflow-y-auto bg-gray-50 p-5">
-        {!selectedWorkOrderId ? (
-          <div className="flex h-full items-center justify-center">
-            <div className="text-center">
-              <p className="text-gray-400">
-                Selecciona una obra para ver los detalles
-              </p>
-            </div>
-          </div>
-        ) : isLoadingDetail ? (
-          <div className="flex h-full items-center justify-center">
-            <p className="text-sm text-gray-400">Cargando…</p>
-          </div>
-        ) : workOrder ? (
-          <WorkOrderDetail
-            workOrder={workOrder}
-            onBack={() => setSelectedWorkOrderId(null)}
-            activeTab={activeTab as any}
-            setActiveTab={setActiveTab as any}
-          />
-        ) : (
-          <div className="flex h-full items-center justify-center">
-            <p className="text-sm text-gray-400">Obra no encontrada.</p>
-          </div>
+      {/* Right panel — detail via nested routes */}
+      <div
+        className={cn(
+          'flex-1 overflow-hidden',
+          !isDetailSelected && 'hidden lg:block',
         )}
+      >
+        <Routes>
+          <Route
+            index
+            element={
+              <div className="flex h-full items-center justify-center bg-gray-50">
+                <p className="text-gray-400">
+                  Selecciona una obra para ver los detalles
+                </p>
+              </div>
+            }
+          />
+          <Route path=":workOrderId" element={<WorkOrderDetailRoute />} />
+        </Routes>
       </div>
 
       {showNewModal && (
@@ -144,7 +169,7 @@ export function WorkOrdersPage() {
           onClose={() => setShowNewModal(false)}
           onCreated={(id) => {
             setShowNewModal(false)
-            setSelectedWorkOrderId(id)
+            navigate(`/obras/${id}`)
           }}
         />
       )}

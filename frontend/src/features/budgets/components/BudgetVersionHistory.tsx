@@ -1,4 +1,4 @@
-import { useBudgetStore } from '../store/budget-store'
+import { useNavigate } from 'react-router-dom'
 import { useBudgetVersions } from '../hooks/use-budgets'
 import { BudgetStatusBadge } from './BudgetStatusBadge'
 
@@ -8,7 +8,7 @@ interface BudgetVersionHistoryProps {
 
 export function BudgetVersionHistory({ budgetId }: BudgetVersionHistoryProps) {
   const { data: versions, isLoading } = useBudgetVersions(budgetId)
-  const { setSelectedBudgetId } = useBudgetStore()
+  const navigate = useNavigate()
 
   if (isLoading) {
     return (
@@ -29,7 +29,7 @@ export function BudgetVersionHistory({ budgetId }: BudgetVersionHistoryProps) {
       {versions.map((v) => (
         <div
           key={v.id}
-          onClick={() => setSelectedBudgetId(v.id)}
+          onClick={() => navigate(`/presupuestos/${v.id}`)}
           className={`flex cursor-pointer items-center justify-between rounded-md border px-3 py-2.5 transition-colors hover:bg-gray-50 ${
             v.id === budgetId
               ? 'border-blue-200 bg-blue-50'

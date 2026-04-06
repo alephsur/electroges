@@ -1,6 +1,6 @@
 import { Camera, FileText, MapPin, Package } from 'lucide-react'
+import { useNavigate, useMatch } from 'react-router-dom'
 import type { SiteVisitSummary } from '../types'
-import { useSiteVisitStore } from '../store/site-visit-store'
 import { SiteVisitStatusBadge } from './SiteVisitStatusBadge'
 
 function formatVisitDate(dateStr: string): string {
@@ -28,7 +28,9 @@ interface SiteVisitListProps {
 }
 
 export function SiteVisitList({ visits, isLoading }: SiteVisitListProps) {
-  const { selectedVisitId, setSelectedVisitId } = useSiteVisitStore()
+  const navigate = useNavigate()
+  const match = useMatch('/visitas/:visitId')
+  const selectedVisitId = match?.params.visitId ?? null
 
   if (isLoading) {
     return (
@@ -53,7 +55,7 @@ export function SiteVisitList({ visits, isLoading }: SiteVisitListProps) {
       {visits.map((visit) => (
         <div
           key={visit.id}
-          onClick={() => setSelectedVisitId(visit.id)}
+          onClick={() => navigate(`/visitas/${visit.id}`)}
           className={`cursor-pointer p-4 transition-colors hover:bg-gray-50 ${
             selectedVisitId === visit.id
               ? 'border-l-2 border-blue-600 bg-blue-50'

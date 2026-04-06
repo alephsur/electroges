@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { X, Info } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { X, Info, ArrowLeft } from 'lucide-react'
 import { useInventoryItem, useUpdateInventoryItem } from '../hooks/use-inventory-items'
 import { SupplierPriceList } from './SupplierPriceList'
 import { StockAdjustmentForm } from './StockAdjustmentForm'
@@ -19,15 +20,16 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'movimientos', label: 'Movimientos' },
 ]
 
-export function InventoryItemDetail() {
-  const selectedItemId = useInventoryStore((s) => s.selectedItemId)
-  const setSelectedItemId = useInventoryStore((s) => s.setSelectedItemId)
+interface InventoryItemDetailProps {
+  itemId: string
+}
+
+export function InventoryItemDetail({ itemId }: InventoryItemDetailProps) {
+  const navigate = useNavigate()
   const activeTab = useInventoryStore((s) => s.activeTab) as Tab
   const setActiveTab = useInventoryStore((s) => s.setActiveTab)
 
-  const { data: item, isLoading, error } = useInventoryItem(selectedItemId)
-
-  if (!selectedItemId) return null
+  const { data: item, isLoading, error } = useInventoryItem(itemId)
 
   if (isLoading) {
     return (
@@ -47,6 +49,15 @@ export function InventoryItemDetail() {
 
   return (
     <div className="flex flex-col bg-white border border-gray-200 rounded-xl overflow-hidden h-full">
+      {/* Mobile back button */}
+      <button
+        onClick={() => navigate('/inventario')}
+        className="flex items-center gap-1.5 px-5 pt-3 pb-1 text-sm text-gray-500 hover:text-gray-700 lg:hidden"
+      >
+        <ArrowLeft size={14} />
+        Inventario
+      </button>
+
       {/* Header */}
       <div className="flex items-start justify-between px-5 py-4 border-b border-gray-100">
         <div>
@@ -56,7 +67,7 @@ export function InventoryItemDetail() {
           )}
         </div>
         <button
-          onClick={() => setSelectedItemId(null)}
+          onClick={() => navigate('/inventario')}
           className="text-gray-400 hover:text-gray-600 mt-0.5"
         >
           <X size={16} />

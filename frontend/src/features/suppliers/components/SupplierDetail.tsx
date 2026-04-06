@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useInventoryStore } from "@/features/inventory/store/inventory-store";
 import {
   ArrowLeft,
   Mail,
@@ -93,7 +92,7 @@ export function SupplierDetail({ supplierId }: SupplierDetailProps) {
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate("/proveedores")}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-gray-400 hover:text-gray-600 transition-colors lg:hidden"
           >
             <ArrowLeft size={18} />
           </button>
@@ -248,11 +247,9 @@ function MaterialesTab({
   const { data, isLoading } = useInventoryItems({ supplier_id: supplierId, limit: 200 });
   const items = data?.items ?? [];
   const navigate = useNavigate();
-  const setSelectedItemId = useInventoryStore((s) => s.setSelectedItemId);
 
   const handleItemDetail = (itemId: string) => {
-    setSelectedItemId(itemId);
-    navigate("/inventario");
+    navigate(`/inventario/${itemId}`);
   };
 
   return (
@@ -506,7 +503,7 @@ function ResumenTab({
 
 function PageShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex flex-col bg-white border border-gray-200 rounded-xl overflow-hidden">
+    <div className="flex flex-col bg-white border border-gray-200 rounded-xl overflow-hidden h-full">
       {children}
     </div>
   );

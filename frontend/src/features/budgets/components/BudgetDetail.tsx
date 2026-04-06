@@ -1,9 +1,8 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FileText, Layers, BarChart2, Download, Send, X, GitBranch, CheckCircle } from 'lucide-react'
+import { FileText, Layers, BarChart2, Download, Send, X, GitBranch, CheckCircle, ArrowLeft } from 'lucide-react'
 import type { Budget } from '../types'
 import { useBudgetStore } from '../store/budget-store'
-import { useWorkOrderStore } from '@/features/work-orders/store/work-order-store'
 import {
   useAcceptBudget,
   useCreateNewVersion,
@@ -27,7 +26,6 @@ export function BudgetDetail({ budget }: BudgetDetailProps) {
   const { activeTab, setActiveTab } = useBudgetStore()
   const [showPreviewModal, setShowPreviewModal] = useState(false)
   const navigate = useNavigate()
-  const { setSelectedWorkOrderId } = useWorkOrderStore()
 
   const sendBudget = useSendBudget()
   const rejectBudget = useRejectBudget()
@@ -61,8 +59,7 @@ export function BudgetDetail({ budget }: BudgetDetailProps) {
       onSuccess: (data) => {
         setShowPreviewModal(false)
         if (data?.work_order_id) {
-          setSelectedWorkOrderId(data.work_order_id)
-          navigate('/obras')
+          navigate(`/obras/${data.work_order_id}`)
         }
       },
     })
@@ -70,6 +67,15 @@ export function BudgetDetail({ budget }: BudgetDetailProps) {
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
+      {/* Mobile back button */}
+      <button
+        onClick={() => navigate('/presupuestos')}
+        className="flex items-center gap-1.5 px-4 pt-3 pb-1 text-sm text-gray-500 hover:text-gray-700 lg:hidden"
+      >
+        <ArrowLeft size={14} />
+        Presupuestos
+      </button>
+
       {/* Header */}
       <div className="shrink-0 border-b border-gray-100 p-4 space-y-3">
         <div className="flex items-start justify-between gap-3">

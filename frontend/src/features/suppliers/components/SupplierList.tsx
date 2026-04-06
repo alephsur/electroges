@@ -1,5 +1,5 @@
 import { Plus, Search } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useMatch } from "react-router-dom";
 import { useSuppliers } from "../hooks/use-suppliers";
 import { useSupplierStore } from "../store/supplier-store";
 import { useDebounce } from "@/shared/hooks/use-debounce";
@@ -12,6 +12,8 @@ interface SupplierListProps {
 
 export function SupplierList({ onNew }: SupplierListProps) {
   const navigate = useNavigate();
+  const match = useMatch("/proveedores/:id");
+  const selectedId = match?.params.id ?? null;
   const {
     searchQuery,
     isActiveFilter,
@@ -102,6 +104,7 @@ export function SupplierList({ onNew }: SupplierListProps) {
                   <SupplierRow
                     key={supplier.id}
                     supplier={supplier}
+                    isSelected={selectedId === supplier.id}
                     onClick={() => navigate(`/proveedores/${supplier.id}`)}
                   />
                 ))}
@@ -123,13 +126,21 @@ export function SupplierList({ onNew }: SupplierListProps) {
 
 function SupplierRow({
   supplier,
+  isSelected,
   onClick,
 }: {
   supplier: Supplier;
+  isSelected: boolean;
   onClick: () => void;
 }) {
   return (
-    <tr onClick={onClick} className="cursor-pointer transition-colors hover:bg-gray-50">
+    <tr
+      onClick={onClick}
+      className={cn(
+        "cursor-pointer transition-colors",
+        isSelected ? "bg-brand-50" : "hover:bg-gray-50",
+      )}
+    >
       <td className="px-4 py-3 font-medium text-gray-900">{supplier.name}</td>
       <td className="px-4 py-3 text-gray-500">{supplier.tax_id ?? "—"}</td>
       <td className="px-4 py-3 text-gray-500 hidden md:table-cell">

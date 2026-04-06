@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { X, ChevronRight } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { apiClient } from '@/lib/api-client'
 import type { SiteVisitListResponse } from '@/features/site-visits/types'
 import { useCreateBudgetFromVisit } from '../hooks/use-budgets'
-import { useBudgetStore } from '../store/budget-store'
 
 interface BudgetFromVisitFormProps {
   initialVisitId?: string
@@ -13,7 +13,7 @@ interface BudgetFromVisitFormProps {
 
 export function BudgetFromVisitForm({ initialVisitId, onClose }: BudgetFromVisitFormProps) {
   const createFromVisit = useCreateBudgetFromVisit()
-  const { setSelectedBudgetId } = useBudgetStore()
+  const navigate = useNavigate()
   const [step, setStep] = useState<1 | 2>(initialVisitId ? 2 : 1)
   const [selectedVisitId, setSelectedVisitId] = useState(initialVisitId ?? '')
   const [notes, setNotes] = useState('')
@@ -43,7 +43,7 @@ export function BudgetFromVisitForm({ initialVisitId, onClose }: BudgetFromVisit
       },
       {
         onSuccess: (data) => {
-          setSelectedBudgetId(data.id)
+          navigate(`/presupuestos/${data.id}`)
           onClose()
         },
       },

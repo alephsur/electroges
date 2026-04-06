@@ -1,4 +1,5 @@
 import { FileText, GitBranch } from 'lucide-react'
+import { useNavigate, useMatch } from 'react-router-dom'
 import type { BudgetSummary } from '../types'
 import { useBudgetStore } from '../store/budget-store'
 import { BudgetStatusBadge } from './BudgetStatusBadge'
@@ -10,7 +11,10 @@ interface BudgetListProps {
 }
 
 export function BudgetList({ budgets, isLoading }: BudgetListProps) {
-  const { selectedBudgetId, setSelectedBudgetId, showAllVersions } = useBudgetStore()
+  const navigate = useNavigate()
+  const match = useMatch('/presupuestos/:budgetId')
+  const selectedBudgetId = match?.params.budgetId ?? null
+  const { showAllVersions } = useBudgetStore()
 
   if (isLoading) {
     return (
@@ -39,7 +43,7 @@ export function BudgetList({ budgets, isLoading }: BudgetListProps) {
       {visibleBudgets.map((budget) => (
         <div
           key={budget.id}
-          onClick={() => setSelectedBudgetId(budget.id)}
+          onClick={() => navigate(`/presupuestos/${budget.id}`)}
           className={`cursor-pointer p-4 transition-colors hover:bg-gray-50 ${
             selectedBudgetId === budget.id
               ? 'border-l-2 border-blue-600 bg-blue-50'

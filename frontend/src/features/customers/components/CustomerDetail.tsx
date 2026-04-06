@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { X, Pencil, Calendar } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { X, Pencil, Calendar, ArrowLeft } from 'lucide-react'
 import { useCustomer, useUpdateCustomer } from '../hooks/use-customers'
 import { useCustomerStore } from '../store/customer-store'
 import { CustomerTypeBadge } from './CustomerTypeBadge'
@@ -9,13 +10,16 @@ import { CustomerDocumentList } from './CustomerDocumentList'
 import { CustomerForm } from './CustomerForm'
 import type { CustomerUpdatePayload } from '../types'
 
-export function CustomerDetail() {
-  const { selectedCustomerId, setSelectedCustomerId, activeTab, setActiveTab } = useCustomerStore()
-  const { data: customer, isLoading } = useCustomer(selectedCustomerId)
+interface CustomerDetailProps {
+  customerId: string
+}
+
+export function CustomerDetail({ customerId }: CustomerDetailProps) {
+  const navigate = useNavigate()
+  const { activeTab, setActiveTab } = useCustomerStore()
+  const { data: customer, isLoading } = useCustomer(customerId)
   const updateCustomer = useUpdateCustomer()
   const [editingFicha, setEditingFicha] = useState(false)
-
-  if (!selectedCustomerId) return null
 
   if (isLoading) {
     return (
@@ -36,8 +40,17 @@ export function CustomerDetail() {
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl flex flex-col h-full overflow-hidden">
+      {/* Mobile back button */}
+      <button
+        onClick={() => navigate('/clientes')}
+        className="flex items-center gap-1.5 px-5 pt-3 pb-1 text-sm text-gray-500 hover:text-gray-700 lg:hidden"
+      >
+        <ArrowLeft size={14} />
+        Clientes
+      </button>
+
       {/* Header */}
-      <div className="px-5 pt-5 pb-4 border-b border-gray-100 shrink-0">
+      <div className="px-5 pt-4 pb-4 border-b border-gray-100 shrink-0">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
             {/* Avatar */}
@@ -77,7 +90,7 @@ export function CustomerDetail() {
               Nueva visita
             </button>
             <button
-              onClick={() => setSelectedCustomerId(null)}
+              onClick={() => navigate('/clientes')}
               className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors"
             >
               <X size={16} />

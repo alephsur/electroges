@@ -1,3 +1,4 @@
+import { useNavigate, useMatch } from 'react-router-dom'
 import { WorkOrderStatusBadge } from './WorkOrderStatusBadge'
 import type { WorkOrderSummary } from '../types'
 
@@ -10,15 +11,13 @@ function fmt(n: number) {
 
 interface WorkOrderListProps {
   orders: WorkOrderSummary[]
-  selectedId: string | null
-  onSelect: (id: string) => void
 }
 
-export function WorkOrderList({
-  orders,
-  selectedId,
-  onSelect,
-}: WorkOrderListProps) {
+export function WorkOrderList({ orders }: WorkOrderListProps) {
+  const navigate = useNavigate()
+  const match = useMatch('/obras/:workOrderId')
+  const selectedId = match?.params.workOrderId ?? null
+
   if (orders.length === 0) {
     return (
       <div className="py-16 text-center text-sm text-gray-400">
@@ -36,7 +35,7 @@ export function WorkOrderList({
         return (
           <button
             key={order.id}
-            onClick={() => onSelect(order.id)}
+            onClick={() => navigate(`/obras/${order.id}`)}
             className={`block w-full px-4 py-3 text-left transition-colors hover:bg-gray-50 ${
               isSelected ? 'bg-blue-50' : ''
             }`}
