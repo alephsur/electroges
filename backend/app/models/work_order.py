@@ -54,9 +54,18 @@ class DeliveryNoteLineType(str, enum.Enum):
 
 class WorkOrder(UUIDMixin, TimestampMixin, Base):
     __tablename__ = "work_orders"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "work_order_number", name="uq_work_orders_tenant_number"),
+    )
 
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     work_order_number: Mapped[str] = mapped_column(
-        String(20), unique=True, nullable=False
+        String(20), nullable=False
     )
     customer_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("customers.id"), nullable=False, index=True

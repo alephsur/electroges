@@ -17,8 +17,8 @@ from app.repositories.base import BaseRepository
 
 
 class SiteVisitRepository(BaseRepository[SiteVisit]):
-    def __init__(self, session: AsyncSession):
-        super().__init__(SiteVisit, session)
+    def __init__(self, session: AsyncSession, tenant_id: uuid.UUID | None = None):
+        super().__init__(SiteVisit, session, tenant_id)
 
     async def search(
         self,
@@ -40,6 +40,10 @@ class SiteVisitRepository(BaseRepository[SiteVisit]):
             selectinload(SiteVisit.documents),
         )
         count_stmt = select(func.count()).select_from(SiteVisit)
+
+        if self.tenant_id is not None:
+            stmt = stmt.where(SiteVisit.tenant_id == self.tenant_id)
+            count_stmt = count_stmt.where(SiteVisit.tenant_id == self.tenant_id)
 
         if customer_id is not None:
             stmt = stmt.where(SiteVisit.customer_id == customer_id)
@@ -117,13 +121,13 @@ class SiteVisitRepository(BaseRepository[SiteVisit]):
 
 
 class SiteVisitMaterialRepository(BaseRepository[SiteVisitMaterial]):
-    def __init__(self, session: AsyncSession):
-        super().__init__(SiteVisitMaterial, session)
+    def __init__(self, session: AsyncSession, tenant_id: uuid.UUID | None = None):
+        super().__init__(SiteVisitMaterial, session, tenant_id)
 
 
 class SiteVisitPhotoRepository(BaseRepository[SiteVisitPhoto]):
-    def __init__(self, session: AsyncSession):
-        super().__init__(SiteVisitPhoto, session)
+    def __init__(self, session: AsyncSession, tenant_id: uuid.UUID | None = None):
+        super().__init__(SiteVisitPhoto, session, tenant_id)
 
     async def get_by_visit(self, visit_id: uuid.UUID) -> list[SiteVisitPhoto]:
         result = await self.session.execute(
@@ -135,5 +139,5 @@ class SiteVisitPhotoRepository(BaseRepository[SiteVisitPhoto]):
 
 
 class SiteVisitDocumentRepository(BaseRepository[SiteVisitDocument]):
-    def __init__(self, session: AsyncSession):
-        super().__init__(SiteVisitDocument, session)
+    def __init__(self, session: AsyncSession, tenant_id: uuid.UUID | None = None):
+        super().__init__(SiteVisitDocument, session, tenant_id)

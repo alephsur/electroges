@@ -12,20 +12,20 @@ from app.repositories.base import BaseRepository
 
 
 class BudgetRepository(BaseRepository[Budget]):
-    def __init__(self, session: AsyncSession):
-        super().__init__(Budget, session)
+    def __init__(self, session: AsyncSession, tenant_id: uuid.UUID | None = None):
+        super().__init__(Budget, session, tenant_id)
 
     async def get_next_budget_number(self) -> str:
         """
-        Generates the next sequential number: PRES-YYYY-NNNN.
-        Counts existing budgets for the current year (including versions).
+        Generates the next sequential number: PRES-YYYY-NNNN (per tenant).
         """
         year = datetime.now().year
-        result = await self.session.execute(
-            select(func.count(Budget.id)).where(
-                Budget.budget_number.like(f"PRES-{year}-%")
-            )
+        stmt = select(func.count(Budget.id)).where(
+            Budget.budget_number.like(f"PRES-{year}-%")
         )
+        if self.tenant_id is not None:
+            stmt = stmt.where(Budget.tenant_id == self.tenant_id)
+        result = await self.session.execute(stmt)
         count = result.scalar() or 0
         return f"PRES-{year}-{(count + 1):04d}"
 
@@ -48,6 +48,10 @@ class BudgetRepository(BaseRepository[Budget]):
             selectinload(Budget.lines),
         )
         count_stmt = select(func.count()).select_from(Budget)
+
+        if self.tenant_id is not None:
+            stmt = stmt.where(Budget.tenant_id == self.tenant_id)
+            count_stmt = count_stmt.where(Budget.tenant_id == self.tenant_id)
 
         if latest_only:
             stmt = stmt.where(Budget.is_latest_version.is_(True))
@@ -159,5 +163,5 @@ class BudgetRepository(BaseRepository[Budget]):
 
 
 class BudgetLineRepository(BaseRepository[BudgetLine]):
-    def __init__(self, session: AsyncSession):
-        super().__init__(BudgetLine, session)
+    def __init__(self, session: AsyncSession, tenant_id: uuid.UUID | None = None):
+        super().__init__(BudgetLine, session, tenant_id)

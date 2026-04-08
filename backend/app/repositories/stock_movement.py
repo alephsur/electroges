@@ -11,8 +11,8 @@ from app.repositories.base import BaseRepository
 
 
 class StockMovementRepository(BaseRepository[StockMovement]):
-    def __init__(self, session: AsyncSession):
-        super().__init__(StockMovement, session)
+    def __init__(self, session: AsyncSession, tenant_id: uuid.UUID | None = None):
+        super().__init__(StockMovement, session, tenant_id)
 
     async def get_by_item(
         self,

@@ -1,3 +1,5 @@
+import uuid
+
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -6,8 +8,8 @@ from app.repositories.base import BaseRepository
 
 
 class SupplierRepository(BaseRepository[Supplier]):
-    def __init__(self, session: AsyncSession):
-        super().__init__(Supplier, session)
+    def __init__(self, session: AsyncSession, tenant_id: uuid.UUID | None = None):
+        super().__init__(Supplier, session, tenant_id)
 
     async def search(
         self,
@@ -18,6 +20,10 @@ class SupplierRepository(BaseRepository[Supplier]):
     ) -> tuple[list[Supplier], int]:
         stmt = select(Supplier)
         count_stmt = select(func.count()).select_from(Supplier)
+
+        if self.tenant_id is not None:
+            stmt = stmt.where(Supplier.tenant_id == self.tenant_id)
+            count_stmt = count_stmt.where(Supplier.tenant_id == self.tenant_id)
 
         if is_active is not None:
             stmt = stmt.where(Supplier.is_active == is_active)
@@ -40,7 +46,8 @@ class SupplierRepository(BaseRepository[Supplier]):
         return list(rows.scalars().all()), total.scalar_one()
 
     async def get_by_tax_id(self, tax_id: str) -> Supplier | None:
-        result = await self.session.execute(
-            select(Supplier).where(Supplier.tax_id == tax_id)
-        )
+        stmt = select(Supplier).where(Supplier.tax_id == tax_id)
+        if self.tenant_id is not None:
+            stmt = stmt.where(Supplier.tenant_id == self.tenant_id)
+        result = await self.session.execute(stmt)
         return result.scalar_one_or_none()

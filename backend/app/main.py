@@ -8,7 +8,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.api.v1.router import api_router
+from app.core.bootstrap import bootstrap_superadmin
 from app.core.config import settings
+from app.core.database import AsyncSessionLocal
 
 LOGGING_CONFIG = {
     "version": 1,
@@ -46,6 +48,8 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting %s [env=%s]", settings.APP_NAME, settings.ENVIRONMENT)
+    async with AsyncSessionLocal() as session:
+        await bootstrap_superadmin(session)
     yield
     logger.info("Shutting down %s", settings.APP_NAME)
 

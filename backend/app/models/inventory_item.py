@@ -20,6 +20,12 @@ if TYPE_CHECKING:
 class InventoryItem(UUIDMixin, TimestampMixin, Base):
     __tablename__ = "inventory_items"
 
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     unit: Mapped[str] = mapped_column(String(20), nullable=False, default="ud", server_default="ud")

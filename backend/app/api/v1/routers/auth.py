@@ -1,7 +1,13 @@
 from fastapi import APIRouter
 
 from app.core.dependencies import CurrentUser, DbSession
-from app.schemas.auth import LoginRequest, TokenRefreshRequest, TokenResponse, UserCreate, UserResponse
+from app.schemas.auth import (
+    InvitationActivateRequest,
+    LoginRequest,
+    TokenRefreshRequest,
+    TokenResponse,
+    UserResponse,
+)
 from app.services.auth import AuthService
 
 router = APIRouter(prefix="/auth", tags=["Autenticación"])
@@ -21,18 +27,14 @@ async def refresh_token(data: TokenRefreshRequest, db: DbSession):
     return await service.refresh(data.refresh_token)
 
 
-@router.post("/register", response_model=UserResponse, status_code=201)
-async def register(data: UserCreate, db: DbSession):
-    """Register a new user (initial setup only)."""
+@router.post("/activate", response_model=TokenResponse)
+async def activate_invitation(data: InvitationActivateRequest, db: DbSession):
+    """Activate a pending account using an invitation token and set a password."""
     service = AuthService(db)
-    user = await service.register(data)
-    return user
+    return await service.activate_invitation(data)
 
 
 @router.get("/me", response_model=UserResponse)
-async def get_current_user(current_user_id: CurrentUser, db: DbSession):
+async def get_current_user(current_user: CurrentUser):
     """Return the currently authenticated user."""
-    from app.repositories.user import UserRepository
-    repo = UserRepository(db)
-    user = await repo.get_by_email(current_user_id)
-    return user
+    return current_user

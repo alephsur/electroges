@@ -62,9 +62,10 @@ def _build_item_response(item: InventoryItem) -> InventoryItemResponse:
 
 
 class InventoryItemService:
-    def __init__(self, session: AsyncSession):
-        self.repo = InventoryItemRepository(session)
-        self._supplier_item_repo = SupplierItemRepository(session)
+    def __init__(self, session: AsyncSession, tenant_id: uuid.UUID):
+        self.repo = InventoryItemRepository(session, tenant_id)
+        self._supplier_item_repo = SupplierItemRepository(session, tenant_id)
+        self._tenant_id = tenant_id
         self._session = session
 
     async def list_for_supplier(
@@ -105,6 +106,7 @@ class InventoryItemService:
             stock_min=data.stock_min,
             supplier_id=supplier_id,
             is_active=True,
+            tenant_id=self._tenant_id,
         )
         created = await self.repo.create(item)
 

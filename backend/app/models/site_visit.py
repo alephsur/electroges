@@ -24,6 +24,12 @@ class SiteVisitStatus(str, enum.Enum):
 class SiteVisit(UUIDMixin, TimestampMixin, Base):
     __tablename__ = "site_visits"
 
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     # Customer — nullable: visit can happen before customer is registered
     customer_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("customers.id", ondelete="SET NULL"), nullable=True, index=True

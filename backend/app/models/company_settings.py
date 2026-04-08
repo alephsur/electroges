@@ -1,23 +1,33 @@
 from __future__ import annotations
 
+import uuid
 from decimal import Decimal
 
-from sqlalchemy import Integer, Numeric, String, Text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
-from app.models.base import TimestampMixin
+from app.models.base import TimestampMixin, UUIDMixin
 
 
-class CompanySettings(TimestampMixin, Base):
+class CompanySettings(UUIDMixin, TimestampMixin, Base):
     """
-    Company configuration — singleton (always ID = 1).
+    Company configuration per tenant.
+    One record per tenant — enforced by UNIQUE constraint on tenant_id.
     Used to generate PDFs for budgets and invoices.
     """
 
     __tablename__ = "company_settings"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
+    # One settings record per tenant
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
     company_name: Mapped[str] = mapped_column(
         String(255), nullable=False, default="", server_default=""
     )
@@ -39,3 +49,5 @@ class CompanySettings(TimestampMixin, Base):
     default_payment_days: Mapped[int] = mapped_column(
         Integer, nullable=False, default=30, server_default="30"
     )
+
+    tenant: Mapped["Tenant"] = relationship("Tenant")  # noqa: F821

@@ -31,8 +31,15 @@ class Settings(BaseSettings):
     SMTP_PORT: int = 587
     SMTP_USER: str = ""
     SMTP_PASSWORD: str = ""
-    SMTP_FROM_EMAIL: str = ""
+    SMTP_FROM_EMAIL: str = "noreply@electroges.local"
     SMTP_USE_TLS: bool = True
+
+    # Multi-tenancy bootstrap
+    SUPERADMIN_EMAIL: str = "admin@electroges.dev"
+    # Frontend URL used for invitation links
+    FRONTEND_URL: str = "http://localhost:5173"
+    # Invitation token TTL in hours
+    INVITATION_EXPIRE_HOURS: int = 48
 
 
 settings = Settings()

@@ -3,7 +3,7 @@ from __future__ import annotations
 import enum
 import uuid
 
-from sqlalchemy import Boolean, Enum as SQLEnum, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Enum as SQLEnum, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -24,7 +24,17 @@ class AddressType(str, enum.Enum):
 
 class Customer(UUIDMixin, TimestampMixin, Base):
     __tablename__ = "customers"
+    __table_args__ = (
+        # tax_id is unique per tenant (not globally)
+        UniqueConstraint("tenant_id", "tax_id", name="uq_customers_tenant_tax_id"),
+    )
 
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     customer_type: Mapped[CustomerType] = mapped_column(
         SQLEnum(CustomerType, name="customertype", values_callable=lambda obj: [e.value for e in obj]),
         nullable=False,
@@ -33,7 +43,7 @@ class Customer(UUIDMixin, TimestampMixin, Base):
     # Full name for individuals, company name for company/community
     name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     # NIF for individuals, CIF for companies/communities
-    tax_id: Mapped[str | None] = mapped_column(String(20), unique=True, nullable=True)
+    tax_id: Mapped[str | None] = mapped_column(String(20), nullable=True)
     email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     phone: Mapped[str | None] = mapped_column(String(30), nullable=True)
     phone_secondary: Mapped[str | None] = mapped_column(String(30), nullable=True)

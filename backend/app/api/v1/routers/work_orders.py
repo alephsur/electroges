@@ -5,7 +5,7 @@ import uuid
 from fastapi import APIRouter, Query, Response, status
 from fastapi.responses import StreamingResponse
 
-from app.core.dependencies import CurrentUser, DbSession
+from app.core.dependencies import CurrentTenantId, CurrentUser, DbSession
 from app.schemas.work_order import (
     CertificationCreate,
     CertificationResponse,
@@ -41,8 +41,9 @@ async def create_work_order(
     data: WorkOrderCreate,
     db: DbSession,
     _: CurrentUser,
+    tenant_id: CurrentTenantId,
 ):
-    svc = WorkOrderService(db)
+    svc = WorkOrderService(db, tenant_id)
     return await svc.create_work_order(data)
 
 
@@ -50,13 +51,14 @@ async def create_work_order(
 async def list_work_orders(
     db: DbSession,
     _: CurrentUser,
+    tenant_id: CurrentTenantId,
     q: str | None = Query(default=None),
     customer_id: uuid.UUID | None = Query(default=None),
     status: str | None = Query(default=None),
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=50, ge=1, le=200),
 ):
-    svc = WorkOrderService(db)
+    svc = WorkOrderService(db, tenant_id)
     return await svc.list_work_orders(
         q=q,
         customer_id=customer_id,
@@ -71,8 +73,9 @@ async def get_work_order(
     work_order_id: uuid.UUID,
     db: DbSession,
     _: CurrentUser,
+    tenant_id: CurrentTenantId,
 ):
-    svc = WorkOrderService(db)
+    svc = WorkOrderService(db, tenant_id)
     return await svc.get_work_order(work_order_id)
 
 
@@ -82,8 +85,9 @@ async def update_work_order(
     data: WorkOrderUpdate,
     db: DbSession,
     _: CurrentUser,
+    tenant_id: CurrentTenantId,
 ):
-    svc = WorkOrderService(db)
+    svc = WorkOrderService(db, tenant_id)
     return await svc.update_work_order(work_order_id, data)
 
 
@@ -96,8 +100,9 @@ async def update_work_order_status(
     data: WorkOrderStatusUpdate,
     db: DbSession,
     _: CurrentUser,
+    tenant_id: CurrentTenantId,
 ):
-    svc = WorkOrderService(db)
+    svc = WorkOrderService(db, tenant_id)
     return await svc.update_status(work_order_id, data)
 
 
@@ -108,8 +113,9 @@ async def get_work_order_kpis(
     work_order_id: uuid.UUID,
     db: DbSession,
     _: CurrentUser,
+    tenant_id: CurrentTenantId,
 ):
-    svc = WorkOrderService(db)
+    svc = WorkOrderService(db, tenant_id)
     return await svc.get_kpis(work_order_id)
 
 
@@ -125,8 +131,9 @@ async def add_task(
     data: TaskCreate,
     db: DbSession,
     _: CurrentUser,
+    tenant_id: CurrentTenantId,
 ):
-    svc = WorkOrderService(db)
+    svc = WorkOrderService(db, tenant_id)
     return await svc.add_task(work_order_id, data)
 
 
@@ -140,8 +147,9 @@ async def update_task(
     data: TaskUpdate,
     db: DbSession,
     _: CurrentUser,
+    tenant_id: CurrentTenantId,
 ):
-    svc = WorkOrderService(db)
+    svc = WorkOrderService(db, tenant_id)
     return await svc.update_task(work_order_id, task_id, data)
 
 
@@ -155,8 +163,9 @@ async def update_task_status(
     data: TaskStatusUpdate,
     db: DbSession,
     _: CurrentUser,
+    tenant_id: CurrentTenantId,
 ):
-    svc = WorkOrderService(db)
+    svc = WorkOrderService(db, tenant_id)
     return await svc.update_task_status(work_order_id, task_id, data)
 
 
@@ -169,8 +178,9 @@ async def delete_task(
     task_id: uuid.UUID,
     db: DbSession,
     _: CurrentUser,
+    tenant_id: CurrentTenantId,
 ):
-    svc = WorkOrderService(db)
+    svc = WorkOrderService(db, tenant_id)
     await svc.delete_task(work_order_id, task_id)
 
 
@@ -186,8 +196,9 @@ async def add_material(
     data: TaskMaterialCreate,
     db: DbSession,
     _: CurrentUser,
+    tenant_id: CurrentTenantId,
 ):
-    svc = WorkOrderService(db)
+    svc = WorkOrderService(db, tenant_id)
     return await svc.add_material(work_order_id, data)
 
 
@@ -201,8 +212,9 @@ async def remove_material(
     material_id: uuid.UUID,
     db: DbSession,
     _: CurrentUser,
+    tenant_id: CurrentTenantId,
 ):
-    svc = WorkOrderService(db)
+    svc = WorkOrderService(db, tenant_id)
     return await svc.remove_material(work_order_id, task_id, material_id)
 
 
@@ -217,8 +229,9 @@ async def consume_material(
     data: TaskMaterialConsume,
     db: DbSession,
     _: CurrentUser,
+    tenant_id: CurrentTenantId,
 ):
-    svc = WorkOrderService(db)
+    svc = WorkOrderService(db, tenant_id)
     return await svc.consume_material(work_order_id, task_id, material_id, data)
 
 
@@ -233,8 +246,9 @@ async def link_purchase_order(
     data: WorkOrderPurchaseOrderLink,
     db: DbSession,
     _: CurrentUser,
+    tenant_id: CurrentTenantId,
 ):
-    svc = WorkOrderService(db)
+    svc = WorkOrderService(db, tenant_id)
     return await svc.link_purchase_order(work_order_id, data)
 
 
@@ -247,8 +261,9 @@ async def unlink_purchase_order(
     purchase_order_id: uuid.UUID,
     db: DbSession,
     _: CurrentUser,
+    tenant_id: CurrentTenantId,
 ):
-    svc = WorkOrderService(db)
+    svc = WorkOrderService(db, tenant_id)
     await svc.unlink_purchase_order(work_order_id, purchase_order_id)
 
 
@@ -262,12 +277,13 @@ async def create_and_link_purchase_order(
     data: NewPurchaseOrderForWorkOrder,
     db: DbSession,
     _: CurrentUser,
+    tenant_id: CurrentTenantId,
 ):
     """Creates a new PurchaseOrder and links it to the work order."""
     from app.schemas.purchase_order import PurchaseOrderCreate, PurchaseOrderLineCreate
     from app.services.purchase_order import PurchaseOrderService
 
-    po_svc = PurchaseOrderService(db)
+    po_svc = PurchaseOrderService(db, tenant_id)
     po_lines = [PurchaseOrderLineCreate(**line) for line in data.lines]
     po = await po_svc.create_order(
         PurchaseOrderCreate(
@@ -278,7 +294,7 @@ async def create_and_link_purchase_order(
             lines=po_lines,
         )
     )
-    svc = WorkOrderService(db)
+    svc = WorkOrderService(db, tenant_id)
     return await svc.link_purchase_order(
         work_order_id,
         WorkOrderPurchaseOrderLink(purchase_order_id=po.id),
@@ -294,9 +310,10 @@ async def receive_purchase_order(
     purchase_order_id: uuid.UUID,
     db: DbSession,
     _: CurrentUser,
+    tenant_id: CurrentTenantId,
 ):
     """Marks a linked PO as received and syncs its lines into the work order's task materials."""
-    svc = WorkOrderService(db)
+    svc = WorkOrderService(db, tenant_id)
     return await svc.receive_purchase_order_from_work_order(work_order_id, purchase_order_id)
 
 
@@ -310,8 +327,9 @@ async def get_certifiable_tasks(
     work_order_id: uuid.UUID,
     db: DbSession,
     _: CurrentUser,
+    tenant_id: CurrentTenantId,
 ):
-    svc = WorkOrderService(db)
+    svc = WorkOrderService(db, tenant_id)
     return await svc.get_certifiable_tasks(work_order_id)
 
 
@@ -325,8 +343,9 @@ async def create_certification(
     data: CertificationCreate,
     db: DbSession,
     _: CurrentUser,
+    tenant_id: CurrentTenantId,
 ):
-    svc = WorkOrderService(db)
+    svc = WorkOrderService(db, tenant_id)
     return await svc.create_certification(work_order_id, data)
 
 
@@ -339,8 +358,9 @@ async def issue_certification(
     cert_id: uuid.UUID,
     db: DbSession,
     _: CurrentUser,
+    tenant_id: CurrentTenantId,
 ):
-    svc = WorkOrderService(db)
+    svc = WorkOrderService(db, tenant_id)
     return await svc.issue_certification(work_order_id, cert_id)
 
 
@@ -353,8 +373,9 @@ async def delete_certification(
     cert_id: uuid.UUID,
     db: DbSession,
     _: CurrentUser,
+    tenant_id: CurrentTenantId,
 ):
-    svc = WorkOrderService(db)
+    svc = WorkOrderService(db, tenant_id)
     await svc.delete_certification(work_order_id, cert_id)
 
 
@@ -368,8 +389,9 @@ async def list_delivery_notes(
     work_order_id: uuid.UUID,
     db: DbSession,
     _: CurrentUser,
+    tenant_id: CurrentTenantId,
 ):
-    svc = WorkOrderService(db)
+    svc = WorkOrderService(db, tenant_id)
     return await svc.list_delivery_notes(work_order_id)
 
 
@@ -383,8 +405,9 @@ async def create_delivery_note(
     data: DeliveryNoteCreate,
     db: DbSession,
     _: CurrentUser,
+    tenant_id: CurrentTenantId,
 ):
-    svc = WorkOrderService(db)
+    svc = WorkOrderService(db, tenant_id)
     return await svc.create_delivery_note(work_order_id, data)
 
 
@@ -397,8 +420,9 @@ async def get_delivery_note(
     delivery_note_id: uuid.UUID,
     db: DbSession,
     _: CurrentUser,
+    tenant_id: CurrentTenantId,
 ):
-    svc = WorkOrderService(db)
+    svc = WorkOrderService(db, tenant_id)
     return await svc.get_delivery_note(work_order_id, delivery_note_id)
 
 
@@ -412,8 +436,9 @@ async def update_delivery_note(
     data: DeliveryNoteUpdate,
     db: DbSession,
     _: CurrentUser,
+    tenant_id: CurrentTenantId,
 ):
-    svc = WorkOrderService(db)
+    svc = WorkOrderService(db, tenant_id)
     return await svc.update_delivery_note(work_order_id, delivery_note_id, data)
 
 
@@ -426,8 +451,9 @@ async def issue_delivery_note(
     delivery_note_id: uuid.UUID,
     db: DbSession,
     _: CurrentUser,
+    tenant_id: CurrentTenantId,
 ):
-    svc = WorkOrderService(db)
+    svc = WorkOrderService(db, tenant_id)
     return await svc.issue_delivery_note(work_order_id, delivery_note_id)
 
 
@@ -440,8 +466,9 @@ async def delete_delivery_note(
     delivery_note_id: uuid.UUID,
     db: DbSession,
     _: CurrentUser,
+    tenant_id: CurrentTenantId,
 ):
-    svc = WorkOrderService(db)
+    svc = WorkOrderService(db, tenant_id)
     await svc.delete_delivery_note(work_order_id, delivery_note_id)
 
 
@@ -451,8 +478,9 @@ async def download_delivery_note_pdf(
     delivery_note_id: uuid.UUID,
     db: DbSession,
     _: CurrentUser,
+    tenant_id: CurrentTenantId,
 ):
-    svc = WorkOrderService(db)
+    svc = WorkOrderService(db, tenant_id)
     pdf_bytes = await svc.generate_delivery_note_pdf(work_order_id, delivery_note_id)
     return StreamingResponse(
         iter([pdf_bytes]),
@@ -473,8 +501,9 @@ async def send_delivery_note_email(
     data: SendDocumentEmail,
     db: DbSession,
     _: CurrentUser,
+    tenant_id: CurrentTenantId,
 ):
-    svc = WorkOrderService(db)
+    svc = WorkOrderService(db, tenant_id)
     await svc.send_delivery_note_email(work_order_id, delivery_note_id, data)
 
 
@@ -487,9 +516,10 @@ async def get_delivery_note_whatsapp_link(
     delivery_note_id: uuid.UUID,
     db: DbSession,
     _: CurrentUser,
+    tenant_id: CurrentTenantId,
     phone: str | None = Query(default=None),
 ):
-    svc = WorkOrderService(db)
+    svc = WorkOrderService(db, tenant_id)
     return await svc.get_delivery_note_whatsapp_link(
         work_order_id, delivery_note_id, phone
     )
@@ -503,8 +533,9 @@ async def download_certification_pdf(
     cert_id: uuid.UUID,
     db: DbSession,
     _: CurrentUser,
+    tenant_id: CurrentTenantId,
 ):
-    svc = WorkOrderService(db)
+    svc = WorkOrderService(db, tenant_id)
     pdf_bytes = await svc.generate_certification_pdf(work_order_id, cert_id)
     return StreamingResponse(
         iter([pdf_bytes]),
@@ -525,8 +556,9 @@ async def send_certification_email(
     data: SendDocumentEmail,
     db: DbSession,
     _: CurrentUser,
+    tenant_id: CurrentTenantId,
 ):
-    svc = WorkOrderService(db)
+    svc = WorkOrderService(db, tenant_id)
     await svc.send_certification_email(work_order_id, cert_id, data)
 
 
@@ -539,7 +571,8 @@ async def get_certification_whatsapp_link(
     cert_id: uuid.UUID,
     db: DbSession,
     _: CurrentUser,
+    tenant_id: CurrentTenantId,
     phone: str | None = Query(default=None),
 ):
-    svc = WorkOrderService(db)
+    svc = WorkOrderService(db, tenant_id)
     return await svc.get_certification_whatsapp_link(work_order_id, cert_id, phone)

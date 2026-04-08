@@ -1,3 +1,5 @@
+from datetime import UTC, datetime
+
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,7 +12,7 @@ from app.core.security import (
 )
 from app.models.user import User
 from app.repositories.user import UserRepository
-from app.schemas.auth import TokenResponse, UserCreate
+from app.schemas.auth import InvitationActivateRequest, TokenResponse
 
 
 class AuthService:
@@ -20,7 +22,7 @@ class AuthService:
 
     async def login(self, email: str, password: str) -> TokenResponse:
         user = await self.repo.get_by_email(email)
-        if not user or not verify_password(password, user.hashed_password):
+        if not user or not user.hashed_password or not verify_password(password, user.hashed_password):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Email o contraseña incorrectos",
@@ -28,7 +30,7 @@ class AuthService:
         if not user.is_active:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Usuario desactivado",
+                detail="Cuenta pendiente de activación o desactivada",
             )
         return self._build_token_response(user)
 
@@ -39,7 +41,14 @@ class AuthService:
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Token de refresco inválido o expirado",
             )
-        user = await self.repo.get_by_email(payload["sub"])
+        user_id_str = payload.get("user_id")
+        if not user_id_str:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token de refresco inválido",
+            )
+        from uuid import UUID
+        user = await self.repo.get_by_id(UUID(user_id_str))
         if not user or not user.is_active:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -47,24 +56,43 @@ class AuthService:
             )
         return self._build_token_response(user)
 
-    async def register(self, data: UserCreate) -> User:
-        existing = await self.repo.get_by_email(data.email)
-        if existing:
+    async def activate_invitation(self, data: InvitationActivateRequest) -> TokenResponse:
+        """Activate a pending account using the invitation token and set a password."""
+        user = await self.repo.get_by_invitation_token(data.token)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Token de invitación no válido",
+            )
+        if user.is_active:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="Ya existe un usuario con ese email",
+                detail="Esta cuenta ya está activada",
             )
-        user = User(
-            email=data.email,
-            full_name=data.full_name,
-            hashed_password=hash_password(data.password),
-        )
-        user = await self.repo.create(user)
+        if user.invitation_expires_at and user.invitation_expires_at < datetime.now(UTC):
+            raise HTTPException(
+                status_code=status.HTTP_410_GONE,
+                detail="El token de invitación ha expirado. Solicita un nuevo enlace al administrador.",
+            )
+
+        await self.repo.update(user, {
+            "hashed_password": hash_password(data.password),
+            "is_active": True,
+            "invitation_token": None,
+            "invitation_expires_at": None,
+        })
         await self.session.commit()
-        return user
+        await self.session.refresh(user)
+
+        return self._build_token_response(user)
 
     def _build_token_response(self, user: User) -> TokenResponse:
-        token_data = {"sub": user.email}
+        token_data = {
+            "sub": user.email,
+            "user_id": str(user.id),
+            "role": user.role.value,
+            "tenant_id": str(user.tenant_id) if user.tenant_id else None,
+        }
         return TokenResponse(
             access_token=create_access_token(token_data),
             refresh_token=create_refresh_token(token_data),

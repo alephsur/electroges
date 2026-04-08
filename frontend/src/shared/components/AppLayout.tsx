@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/features/auth/store/auth-store";
+import { useTenantBranding } from "@/features/admin/hooks/use-tenants";
 import {
   LayoutDashboard, Users, MapPin, FileText,
   HardHat, Receipt, Package, Truck, LogOut,
-  Menu, X, ChevronLeft, ChevronRight,
+  Menu, X, ChevronLeft, ChevronRight, ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/shared/utils/cn";
 
@@ -19,11 +20,39 @@ const NAV_ITEMS = [
   { to: "/proveedores",   label: "Proveedores",       icon: Truck },
 ];
 
+const ADMIN_ITEMS = [
+  { to: "/admin/tenants", label: "Tenants", icon: ShieldCheck },
+];
+
+function resolveLogoUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (url.startsWith("/uploads")) {
+    const base = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+    return `${base}${url}`;
+  }
+  return url;
+}
+
 export function AppLayout() {
   const { user, logout } = useAuthStore();
+  const isSuperAdmin = user?.role === "superadmin";
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [logoError, setLogoError] = useState(false);
+  const { data: branding } = useTenantBranding();
+  const logoUrl = resolveLogoUrl(branding?.logo_url);
+
+  useEffect(() => { setLogoError(false); }, [logoUrl]);
+
+  useEffect(() => {
+    const link = (document.querySelector("link[rel~='icon']") as HTMLLinkElement)
+      ?? Object.assign(document.createElement("link"), { rel: "icon" });
+    if (!link.parentNode) document.head.appendChild(link);
+    link.href = logoUrl && !logoError
+      ? logoUrl
+      : "/favicon.ico";
+  }, [logoUrl, logoError]);
 
   const handleLogout = () => {
     logout();
@@ -55,9 +84,29 @@ export function AppLayout() {
         {/* Logo row */}
         <div className="h-16 flex items-center px-4 border-b border-gray-200 shrink-0 gap-2">
           {collapsed ? (
-            <span className="mx-auto text-xl leading-none">⚡</span>
+            logoUrl && !logoError ? (
+              <img
+                src={logoUrl}
+                alt="Logo"
+                className="mx-auto h-8 w-8 object-contain rounded"
+                onError={() => setLogoError(true)}
+              />
+            ) : (
+              <span className="mx-auto text-xl leading-none">⚡</span>
+            )
+          ) : logoUrl && !logoError ? (
+            <div className="flex-1 min-w-0 flex items-center">
+              <img
+                src={logoUrl}
+                alt={branding?.name ?? "Logo"}
+                className="h-12 w-auto max-w-full object-contain rounded"
+                onError={() => setLogoError(true)}
+              />
+            </div>
           ) : (
-            <span className="flex-1 text-xl font-bold text-brand-700 truncate">⚡ ElectroGes</span>
+            <span className="flex-1 text-xl font-bold text-brand-700 truncate">
+              ⚡ {branding?.name ?? "ElectroGes"}
+            </span>
           )}
           {/* Mobile close button */}
           <button
@@ -97,6 +146,37 @@ export function AppLayout() {
               {!collapsed && label}
             </NavLink>
           ))}
+
+          {isSuperAdmin && (
+            <>
+              {!collapsed && (
+                <p className="px-3 pt-4 pb-1 text-[10px] font-semibold uppercase tracking-widest text-gray-400">
+                  Administración
+                </p>
+              )}
+              {collapsed && <div className="my-2 border-t border-gray-100" />}
+              {ADMIN_ITEMS.map(({ to, label, icon: Icon }) => (
+                <NavLink
+                  key={to}
+                  to={to}
+                  onClick={() => setMobileOpen(false)}
+                  title={collapsed ? label : undefined}
+                  className={({ isActive }) =>
+                    cn(
+                      "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                      collapsed && "justify-center px-2",
+                      isActive
+                        ? "bg-brand-50 text-brand-700"
+                        : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                    )
+                  }
+                >
+                  <Icon size={17} className="shrink-0" />
+                  {!collapsed && label}
+                </NavLink>
+              ))}
+            </>
+          )}
         </nav>
 
         {/* User footer */}
@@ -136,7 +216,11 @@ export function AppLayout() {
           >
             <Menu size={20} />
           </button>
-          <span className="text-base font-bold text-brand-700">⚡ ElectroGes</span>
+          {logoUrl && !logoError ? (
+            <img src={logoUrl} alt={branding?.name ?? "Logo"} className="h-9 w-auto max-w-[160px] object-contain rounded" onError={() => setLogoError(true)} />
+          ) : (
+            <span className="text-base font-bold text-brand-700">⚡ {branding?.name ?? "ElectroGes"}</span>
+          )}
         </header>
 
         <main className="flex-1 overflow-y-auto">

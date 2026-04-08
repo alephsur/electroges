@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import heapq
+import uuid
 from collections import defaultdict
 from datetime import date, datetime
 from decimal import Decimal
@@ -60,8 +61,9 @@ def _invoice_collected(invoice: Invoice) -> Decimal:
 
 
 class DashboardRepository:
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: AsyncSession, tenant_id: uuid.UUID | None = None):
         self.session = session
+        self.tenant_id = tenant_id
 
     async def get_summary(self, date_from: date, date_to: date) -> DashboardSummary:
         today = date.today()
@@ -94,8 +96,14 @@ class DashboardRepository:
 
     # ── Data loaders ──────────────────────────────────────────────────────────
 
+    def _tf(self, model, stmt):
+        """Apply tenant filter if tenant_id is set."""
+        if self.tenant_id is not None and hasattr(model, "tenant_id"):
+            stmt = stmt.where(model.tenant_id == self.tenant_id)
+        return stmt
+
     async def _load_budgets(self, date_from: date, date_to: date) -> list[Budget]:
-        result = await self.session.execute(
+        stmt = (
             select(Budget)
             .options(selectinload(Budget.lines), selectinload(Budget.customer))
             .where(
@@ -104,21 +112,21 @@ class DashboardRepository:
                 Budget.is_latest_version.is_(True),
             )
         )
+        result = await self.session.execute(self._tf(Budget, stmt))
         return list(result.scalars().all())
 
     async def _load_work_orders(self, date_from: date, date_to: date) -> list[WorkOrder]:
         from_dt = datetime.combine(date_from, datetime.min.time())
         to_dt = datetime.combine(date_to, datetime.max.time())
-        result = await self.session.execute(
-            select(WorkOrder).where(
-                WorkOrder.created_at >= from_dt,
-                WorkOrder.created_at <= to_dt,
-            )
+        stmt = select(WorkOrder).where(
+            WorkOrder.created_at >= from_dt,
+            WorkOrder.created_at <= to_dt,
         )
+        result = await self.session.execute(self._tf(WorkOrder, stmt))
         return list(result.scalars().all())
 
     async def _load_invoices(self, date_from: date, date_to: date) -> list[Invoice]:
-        result = await self.session.execute(
+        stmt = (
             select(Invoice)
             .options(
                 selectinload(Invoice.lines),
@@ -131,29 +139,28 @@ class DashboardRepository:
                 Invoice.is_rectification.is_(False),
             )
         )
+        result = await self.session.execute(self._tf(Invoice, stmt))
         return list(result.scalars().all())
 
     async def _load_purchase_orders(self, date_from: date, date_to: date) -> list[PurchaseOrder]:
-        result = await self.session.execute(
-            select(PurchaseOrder).where(
-                PurchaseOrder.order_date >= date_from,
-                PurchaseOrder.order_date <= date_to,
-            )
+        stmt = select(PurchaseOrder).where(
+            PurchaseOrder.order_date >= date_from,
+            PurchaseOrder.order_date <= date_to,
         )
+        result = await self.session.execute(self._tf(PurchaseOrder, stmt))
         return list(result.scalars().all())
 
     async def _load_site_visits(self, date_from: date, date_to: date) -> list[SiteVisit]:
-        result = await self.session.execute(
-            select(SiteVisit).where(
-                func.date(SiteVisit.visit_date) >= date_from,
-                func.date(SiteVisit.visit_date) <= date_to,
-            )
+        stmt = select(SiteVisit).where(
+            func.date(SiteVisit.visit_date) >= date_from,
+            func.date(SiteVisit.visit_date) <= date_to,
         )
+        result = await self.session.execute(self._tf(SiteVisit, stmt))
         return list(result.scalars().all())
 
     async def _load_all_overdue_invoices(self, today: date) -> list[Invoice]:
         """Load ALL overdue invoices regardless of date filter (actionable alerts)."""
-        result = await self.session.execute(
+        stmt = (
             select(Invoice)
             .options(
                 selectinload(Invoice.lines),
@@ -168,11 +175,12 @@ class DashboardRepository:
             .order_by(Invoice.due_date.asc())
             .limit(20)
         )
+        result = await self.session.execute(self._tf(Invoice, stmt))
         return list(result.scalars().all())
 
     async def _load_all_pending_budgets(self, today: date) -> list[Budget]:
         """Load ALL sent budgets awaiting response (actionable alerts)."""
-        result = await self.session.execute(
+        stmt = (
             select(Budget)
             .options(selectinload(Budget.lines), selectinload(Budget.customer))
             .where(
@@ -183,44 +191,24 @@ class DashboardRepository:
             .order_by(Budget.issue_date.asc())
             .limit(20)
         )
+        result = await self.session.execute(self._tf(Budget, stmt))
         return list(result.scalars().all())
 
     async def _load_recent_activity(self, limit: int = 20) -> list[RecentActivityItem]:
         """Merge the most recent records from all main entities, sorted by date desc."""
         n = limit // 5 + 4  # fetch a bit more from each to guarantee top N after merge
 
-        invoices_res = await self.session.execute(
-            select(Invoice)
-            .options(selectinload(Invoice.customer))
-            .where(Invoice.is_rectification.is_(False))
-            .order_by(Invoice.created_at.desc())
-            .limit(n)
-        )
-        work_orders_res = await self.session.execute(
-            select(WorkOrder)
-            .options(selectinload(WorkOrder.customer))
-            .order_by(WorkOrder.created_at.desc())
-            .limit(n)
-        )
-        budgets_res = await self.session.execute(
-            select(Budget)
-            .options(selectinload(Budget.customer))
-            .where(Budget.is_latest_version.is_(True))
-            .order_by(Budget.created_at.desc())
-            .limit(n)
-        )
-        site_visits_res = await self.session.execute(
-            select(SiteVisit)
-            .options(selectinload(SiteVisit.customer))
-            .order_by(SiteVisit.created_at.desc())
-            .limit(n)
-        )
-        po_res = await self.session.execute(
-            select(PurchaseOrder)
-            .options(selectinload(PurchaseOrder.supplier))
-            .order_by(PurchaseOrder.created_at.desc())
-            .limit(n)
-        )
+        inv_stmt = self._tf(Invoice, select(Invoice).options(selectinload(Invoice.customer)).where(Invoice.is_rectification.is_(False)).order_by(Invoice.created_at.desc()).limit(n))
+        wo_stmt = self._tf(WorkOrder, select(WorkOrder).options(selectinload(WorkOrder.customer)).order_by(WorkOrder.created_at.desc()).limit(n))
+        b_stmt = self._tf(Budget, select(Budget).options(selectinload(Budget.customer)).where(Budget.is_latest_version.is_(True)).order_by(Budget.created_at.desc()).limit(n))
+        sv_stmt = self._tf(SiteVisit, select(SiteVisit).options(selectinload(SiteVisit.customer)).order_by(SiteVisit.created_at.desc()).limit(n))
+        po_stmt = self._tf(PurchaseOrder, select(PurchaseOrder).options(selectinload(PurchaseOrder.supplier)).order_by(PurchaseOrder.created_at.desc()).limit(n))
+
+        invoices_res = await self.session.execute(inv_stmt)
+        work_orders_res = await self.session.execute(wo_stmt)
+        budgets_res = await self.session.execute(b_stmt)
+        site_visits_res = await self.session.execute(sv_stmt)
+        po_res = await self.session.execute(po_stmt)
 
         items: list[RecentActivityItem] = []
 
@@ -278,13 +266,13 @@ class DashboardRepository:
         return items[:limit]
 
     async def _count_low_stock_items(self) -> int:
-        """Count inventory items where stock_current <= stock_min (global alert)."""
-        result = await self.session.execute(
-            select(func.count()).select_from(InventoryItem).where(
-                InventoryItem.stock_current <= InventoryItem.stock_min,
-                InventoryItem.stock_min > 0,
-            )
+        """Count inventory items where stock_current <= stock_min."""
+        stmt = select(func.count()).select_from(InventoryItem).where(
+            InventoryItem.stock_current <= InventoryItem.stock_min,
+            InventoryItem.stock_min > 0,
         )
+        stmt = self._tf(InventoryItem, stmt)
+        result = await self.session.execute(stmt)
         return result.scalar() or 0
 
     # ── Stats builders ────────────────────────────────────────────────────────

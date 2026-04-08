@@ -2,10 +2,20 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { apiClient } from "@/lib/api-client";
 
+export type UserRole = "superadmin" | "admin" | "user";
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  full_name: string;
+  role: UserRole;
+  tenant_id: string | null;
+}
+
 interface AuthState {
   accessToken: string | null;
   refreshToken: string | null;
-  user: { id: string; email: string; full_name: string } | null;
+  user: AuthUser | null;
   isAuthenticated: boolean;
 
   login: (email: string, password: string) => Promise<void>;
@@ -28,7 +38,6 @@ export const useAuthStore = create<AuthState>()(
           refreshToken: data.refresh_token,
           isAuthenticated: true,
         });
-        // Fetch user info
         const { data: user } = await apiClient.get("/api/v1/auth/me", {
           headers: { Authorization: `Bearer ${data.access_token}` },
         });

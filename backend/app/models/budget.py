@@ -5,7 +5,7 @@ import uuid
 from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import Boolean, Date, Enum as SQLEnum, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import Boolean, Date, Enum as SQLEnum, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -29,9 +29,18 @@ class BudgetLineType(str, enum.Enum):
 
 class Budget(UUIDMixin, TimestampMixin, Base):
     __tablename__ = "budgets"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "budget_number", name="uq_budgets_tenant_number"),
+    )
 
-    # Auto-numbering: PRES-2025-0001
-    budget_number: Mapped[str] = mapped_column(String(20), unique=True, nullable=False)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    # Auto-numbering: PRES-2025-0001 (unique per tenant)
+    budget_number: Mapped[str] = mapped_column(String(20), nullable=False)
 
     # Versioning — Model A: each version is an independent Budget
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")

@@ -11,8 +11,8 @@ from app.repositories.base import BaseRepository
 
 
 class SupplierItemRepository(BaseRepository[SupplierItem]):
-    def __init__(self, session: AsyncSession):
-        super().__init__(SupplierItem, session)
+    def __init__(self, session: AsyncSession, tenant_id: uuid.UUID | None = None):
+        super().__init__(SupplierItem, session, tenant_id)
 
     async def get_by_item(self, inventory_item_id: uuid.UUID) -> list[SupplierItem]:
         """Return all active suppliers for an item, preferred first."""

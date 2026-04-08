@@ -77,14 +77,14 @@
 <!-- HEADER -->
 <div class="header">
   <div>
-    {% if company.logo_path %}
+    {% if logo_abs_path %}
       <img src="file://{{ logo_abs_path }}" class="company-logo" alt="Logo">
     {% else %}
-      <div class="company-name">{{ company.company_name }}</div>
+      <div class="company-name">{{ effective_company_name }}</div>
     {% endif %}
   </div>
   <div class="company-info">
-    <div class="company-name">{{ company.company_name }}</div>
+    <div class="company-name">{{ effective_company_name }}</div>
     {% if company.tax_id %}<div>CIF: {{ company.tax_id }}</div>{% endif %}
     {% if company.address %}<div>{{ company.address }}</div>{% endif %}
     {% if company.city %}<div>{{ company.postal_code }} {{ company.city }}</div>{% endif %}
@@ -185,7 +185,7 @@
     <div style="margin-top:2pt">Firma: _________________________________</div>
   </div>
   <div class="signature-box" style="text-align:right">
-    <div>{{ company.company_name }}</div>
+    <div>{{ effective_company_name }}</div>
     {% if company.tax_id %}<div>CIF: {{ company.tax_id }}</div>{% endif %}
     <div style="margin-top:2pt">Firma: _________________________________</div>
   </div>

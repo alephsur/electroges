@@ -55,15 +55,16 @@ _TERMINAL_STATUSES = {SiteVisitStatus.COMPLETED, SiteVisitStatus.CANCELLED, Site
 
 
 class SiteVisitService:
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: AsyncSession, tenant_id: uuid.UUID):
         self._session = session
-        self._repo = SiteVisitRepository(session)
-        self._material_repo = SiteVisitMaterialRepository(session)
-        self._photo_repo = SiteVisitPhotoRepository(session)
-        self._doc_repo = SiteVisitDocumentRepository(session)
-        self._customer_repo = CustomerRepository(session)
-        self._addr_repo = CustomerAddressRepository(session)
-        self._item_repo = InventoryItemRepository(session)
+        self._tenant_id = tenant_id
+        self._repo = SiteVisitRepository(session, tenant_id)
+        self._material_repo = SiteVisitMaterialRepository(session, tenant_id)
+        self._photo_repo = SiteVisitPhotoRepository(session, tenant_id)
+        self._doc_repo = SiteVisitDocumentRepository(session, tenant_id)
+        self._customer_repo = CustomerRepository(session, tenant_id)
+        self._addr_repo = CustomerAddressRepository(session, tenant_id)
+        self._item_repo = InventoryItemRepository(session, tenant_id)
 
     # ── List / detail ─────────────────────────────────────────────────────────
 
@@ -133,6 +134,7 @@ class SiteVisitService:
 
         visit_data = data.model_dump()
         visit_data["address_text"] = address_text
+        visit_data["tenant_id"] = self._tenant_id
         visit = SiteVisit(**visit_data)
         visit = await self._repo.create(visit)
         await self._session.commit()

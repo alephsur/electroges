@@ -13,8 +13,8 @@ from app.repositories.base import BaseRepository
 
 
 class PurchaseOrderRepository(BaseRepository[PurchaseOrder]):
-    def __init__(self, session: AsyncSession):
-        super().__init__(PurchaseOrder, session)
+    def __init__(self, session: AsyncSession, tenant_id: uuid.UUID | None = None):
+        super().__init__(PurchaseOrder, session, tenant_id)
 
     async def get_by_supplier(
         self,
@@ -34,6 +34,8 @@ class PurchaseOrderRepository(BaseRepository[PurchaseOrder]):
         )
 
         base_filter = [PurchaseOrder.supplier_id == supplier_id]
+        if self.tenant_id is not None:
+            base_filter.append(PurchaseOrder.tenant_id == self.tenant_id)
         if status is not None:
             base_filter.append(PurchaseOrder.status == status)
 
@@ -67,10 +69,11 @@ class PurchaseOrderRepository(BaseRepository[PurchaseOrder]):
     async def get_next_order_number(self) -> str:
         """Generate the next sequential order number in the format PED-YYYY-NNNN."""
         current_year = date.today().year
-        result = await self.session.execute(
-            select(func.count(PurchaseOrder.id)).where(
-                extract("year", PurchaseOrder.order_date) == current_year
-            )
+        stmt = select(func.count(PurchaseOrder.id)).where(
+            extract("year", PurchaseOrder.order_date) == current_year
         )
+        if self.tenant_id is not None:
+            stmt = stmt.where(PurchaseOrder.tenant_id == self.tenant_id)
+        result = await self.session.execute(stmt)
         count = result.scalar_one()
         return f"PED-{current_year}-{count + 1:04d}"

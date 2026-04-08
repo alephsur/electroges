@@ -17,8 +17,9 @@ logger = logging.getLogger(__name__)
 
 
 class SupplierService:
-    def __init__(self, session: AsyncSession):
-        self._repo = SupplierRepository(session)
+    def __init__(self, session: AsyncSession, tenant_id: uuid.UUID):
+        self._repo = SupplierRepository(session, tenant_id)
+        self._tenant_id = tenant_id
         self._session = session
 
     async def list_suppliers(
@@ -55,7 +56,7 @@ class SupplierService:
         logger.info("Creating supplier name=%r tax_id=%r", data.name, data.tax_id)
         if data.tax_id:
             await self._assert_tax_id_unique(data.tax_id)
-        supplier = Supplier(**data.model_dump())
+        supplier = Supplier(**data.model_dump(), tenant_id=self._tenant_id)
         created = await self._repo.create(supplier)
         await self._session.commit()
         logger.info("Supplier created id=%s", created.id)

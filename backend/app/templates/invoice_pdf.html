@@ -99,14 +99,14 @@
 <!-- HEADER -->
 <div class="header">
   <div>
-    {% if company.logo_path %}
+    {% if logo_abs_path %}
       <img src="file://{{ logo_abs_path }}" class="company-logo" alt="Logo">
     {% else %}
-      <div class="company-name">{{ company.company_name }}</div>
+      <div class="company-name">{{ effective_company_name }}</div>
     {% endif %}
   </div>
   <div class="company-info">
-    <div class="company-name">{{ company.company_name }}</div>
+    <div class="company-name">{{ effective_company_name }}</div>
     {% if company.tax_id %}<div>CIF: {{ company.tax_id }}</div>{% endif %}
     {% if company.address %}<div>{{ company.address }}</div>{% endif %}
     {% if company.city %}<div>{{ company.postal_code }} {{ company.city }}</div>{% endif %}
@@ -220,7 +220,7 @@
 <div class="payment-block">
   <div class="payment-label">Datos de pago</div>
   <div>IBAN: {{ company.bank_account }}</div>
-  <div>Beneficiario: {{ company.company_name }}</div>
+  <div>Beneficiario: {{ effective_company_name }}</div>
   <div>Concepto: {{ invoice.invoice_number }}</div>
 </div>
 {% endif %}

@@ -75,23 +75,24 @@ logger = logging.getLogger(__name__)
 
 
 class WorkOrderService:
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: AsyncSession, tenant_id: uuid.UUID):
         self._session = session
-        self._repo = WorkOrderRepository(session)
-        self._task_repo = TaskRepository(session)
-        self._task_material_repo = TaskMaterialRepository(session)
-        self._cert_repo = CertificationRepository(session)
-        self._cert_item_repo = CertificationItemRepository(session)
-        self._wopo_repo = WorkOrderPurchaseOrderRepository(session)
-        self._delivery_note_repo = DeliveryNoteRepository(session)
-        self._delivery_note_item_repo = DeliveryNoteItemRepository(session)
-        self._budget_repo = BudgetRepository(session)
-        self._budget_line_repo = BudgetLineRepository(session)
-        self._item_repo = InventoryItemRepository(session)
-        self._movement_repo = StockMovementRepository(session)
-        self._customer_repo = CustomerRepository(session)
-        self._visit_repo = SiteVisitRepository(session)
-        self._purchase_order_repo = PurchaseOrderRepository(session)
+        self._tenant_id = tenant_id
+        self._repo = WorkOrderRepository(session, tenant_id)
+        self._task_repo = TaskRepository(session, tenant_id)
+        self._task_material_repo = TaskMaterialRepository(session, tenant_id)
+        self._cert_repo = CertificationRepository(session, tenant_id)
+        self._cert_item_repo = CertificationItemRepository(session, tenant_id)
+        self._wopo_repo = WorkOrderPurchaseOrderRepository(session, tenant_id)
+        self._delivery_note_repo = DeliveryNoteRepository(session, tenant_id)
+        self._delivery_note_item_repo = DeliveryNoteItemRepository(session, tenant_id)
+        self._budget_repo = BudgetRepository(session, tenant_id)
+        self._budget_line_repo = BudgetLineRepository(session, tenant_id)
+        self._item_repo = InventoryItemRepository(session, tenant_id)
+        self._movement_repo = StockMovementRepository(session, tenant_id)
+        self._customer_repo = CustomerRepository(session, tenant_id)
+        self._visit_repo = SiteVisitRepository(session, tenant_id)
+        self._purchase_order_repo = PurchaseOrderRepository(session, tenant_id)
 
     # ── Create directly ───────────────────────────────────────────────────────
 
@@ -112,6 +113,7 @@ class WorkOrderService:
             status=WorkOrderStatus.DRAFT,
             address=data.address,
             notes=data.notes,
+            tenant_id=self._tenant_id,
         )
         work_order = await self._repo.create(work_order)
         await self._session.commit()
@@ -164,6 +166,7 @@ class WorkOrderService:
             origin_budget_id=budget_id,
             status=WorkOrderStatus.DRAFT,
             address=address,
+            tenant_id=self._tenant_id,
         )
         work_order = await self._repo.create(work_order)
 
@@ -614,6 +617,7 @@ class WorkOrderService:
                 reference_type="work_order",
                 reference_id=work_order_id,
                 notes=data.notes,
+                tenant_id=self._tenant_id,
             )
             await self._movement_repo.create(movement)
 

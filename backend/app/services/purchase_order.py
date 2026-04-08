@@ -26,11 +26,12 @@ logger = logging.getLogger(__name__)
 
 
 class PurchaseOrderService:
-    def __init__(self, session: AsyncSession):
-        self._repo = PurchaseOrderRepository(session)
-        self._item_repo = InventoryItemRepository(session)
-        self._movement_repo = StockMovementRepository(session)
-        self._supplier_item_repo = SupplierItemRepository(session)
+    def __init__(self, session: AsyncSession, tenant_id: uuid.UUID):
+        self._repo = PurchaseOrderRepository(session, tenant_id)
+        self._item_repo = InventoryItemRepository(session, tenant_id)
+        self._movement_repo = StockMovementRepository(session, tenant_id)
+        self._supplier_item_repo = SupplierItemRepository(session, tenant_id)
+        self._tenant_id = tenant_id
         self._session = session
 
     async def list_by_supplier(
@@ -87,6 +88,7 @@ class PurchaseOrderService:
             order_date=data.order_date,
             expected_date=data.expected_date,
             notes=data.notes,
+            tenant_id=self._tenant_id,
         )
         await self._repo.create(order)
 
@@ -173,6 +175,7 @@ class PurchaseOrderService:
                 unit_cost=line.unit_cost,
                 reference_type="purchase_order",
                 reference_id=order.id,
+                tenant_id=self._tenant_id,
             )
             await self._movement_repo.create(movement)
 

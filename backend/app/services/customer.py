@@ -30,10 +30,11 @@ logger = logging.getLogger(__name__)
 
 
 class CustomerService:
-    def __init__(self, session: AsyncSession):
-        self._repo = CustomerRepository(session)
-        self._addr_repo = CustomerAddressRepository(session)
-        self._doc_repo = CustomerDocumentRepository(session)
+    def __init__(self, session: AsyncSession, tenant_id: uuid.UUID):
+        self._repo = CustomerRepository(session, tenant_id)
+        self._addr_repo = CustomerAddressRepository(session, tenant_id)
+        self._doc_repo = CustomerDocumentRepository(session, tenant_id)
+        self._tenant_id = tenant_id
         self._session = session
 
     # ── List / detail ─────────────────────────────────────────────────────────
@@ -78,7 +79,7 @@ class CustomerService:
         if data.tax_id:
             await self._assert_tax_id_unique(data.tax_id)
 
-        customer = Customer(**data.model_dump(exclude={"initial_address"}))
+        customer = Customer(**data.model_dump(exclude={"initial_address"}), tenant_id=self._tenant_id)
         customer = await self._repo.create(customer)
 
         # Create initial address if provided and mark it as default

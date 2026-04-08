@@ -30,10 +30,11 @@ logger = logging.getLogger(__name__)
 
 
 class InventoryService:
-    def __init__(self, session: AsyncSession):
-        self._item_repo = InventoryItemRepository(session)
-        self._movement_repo = StockMovementRepository(session)
-        self._supplier_item_repo = SupplierItemRepository(session)
+    def __init__(self, session: AsyncSession, tenant_id: uuid.UUID):
+        self._item_repo = InventoryItemRepository(session, tenant_id)
+        self._movement_repo = StockMovementRepository(session, tenant_id)
+        self._supplier_item_repo = SupplierItemRepository(session, tenant_id)
+        self._tenant_id = tenant_id
         self._session = session
 
     # ------------------------------------------------------------------ items
@@ -83,6 +84,7 @@ class InventoryService:
             stock_min=data.stock_min,
             supplier_id=data.supplier_id,
             is_active=data.is_active,
+            tenant_id=self._tenant_id,
         )
         created = await self._item_repo.create(item)
 
@@ -310,6 +312,7 @@ class InventoryService:
             unit_cost=data.unit_cost,
             reference_type="manual_adjustment",
             notes=data.notes,
+            tenant_id=self._tenant_id,
         )
         await self._movement_repo.create(movement)
 
