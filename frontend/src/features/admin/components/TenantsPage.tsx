@@ -361,7 +361,6 @@ function TenantCard({
 }) {
   const [expanded, setExpanded] = useState(false);
 
-  const activeUsers = tenant.users.filter((u) => u.is_active || getInvitationStatus(u) !== "activated");
   const summaryUser = tenant.users[0] ?? null;
   const invStatus = summaryUser ? getInvitationStatus(summaryUser) : null;
 

@@ -13,8 +13,6 @@ export function ActivatePage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const { login } = useAuthStore();
-
   if (!token) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
