@@ -5,7 +5,7 @@ import { useTenantBranding } from "@/features/admin/hooks/use-tenants";
 import {
   LayoutDashboard, Users, MapPin, FileText,
   HardHat, Receipt, Package, Truck, LogOut,
-  Menu, X, ChevronLeft, ChevronRight, ShieldCheck,
+  Menu, X, ChevronLeft, ChevronRight, ShieldCheck, CalendarDays,
 } from "lucide-react";
 import { cn } from "@/shared/utils/cn";
 
@@ -18,6 +18,7 @@ const NAV_ITEMS = [
   { to: "/facturacion",   label: "Facturación",       icon: Receipt },
   { to: "/inventario",    label: "Inventario",        icon: Package },
   { to: "/proveedores",   label: "Proveedores",       icon: Truck },
+  { to: "/calendario",    label: "Calendario",        icon: CalendarDays },
 ];
 
 const ADMIN_ITEMS = [
