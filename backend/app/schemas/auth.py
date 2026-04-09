@@ -32,6 +32,20 @@ class InvitationActivateRequest(BaseModel):
         return v
 
 
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def password_rules(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("La contraseña debe tener al menos 8 caracteres")
+        if len(v.encode("utf-8")) > 72:
+            raise ValueError("La contraseña no puede superar los 72 caracteres")
+        return v
+
+
 class UserResponse(BaseModel):
     id: UUID
     email: str

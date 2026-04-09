@@ -12,7 +12,7 @@ from app.core.security import (
 )
 from app.models.user import User
 from app.repositories.user import UserRepository
-from app.schemas.auth import InvitationActivateRequest
+from app.schemas.auth import ChangePasswordRequest, InvitationActivateRequest
 
 # Services return (user, access_token, refresh_token) so the router can
 # place the tokens in HttpOnly cookies without exposing them in the body.
@@ -89,6 +89,15 @@ class AuthService:
         await self.session.refresh(user)
 
         return self._build_tokens(user)
+
+    async def change_password(self, user: User, data: ChangePasswordRequest) -> None:
+        if not user.hashed_password or not verify_password(data.current_password, user.hashed_password):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="La contraseña actual es incorrecta",
+            )
+        await self.repo.update(user, {"hashed_password": hash_password(data.new_password)})
+        await self.session.commit()
 
     def _build_tokens(self, user: User) -> AuthTokens:
         token_data = {

@@ -19,6 +19,7 @@ interface AuthState {
   login: (email: string, password: string) => Promise<void>;
   refreshSession: () => Promise<void>;
   logout: () => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -47,6 +48,13 @@ export const useAuthStore = create<AuthState>()(
         } finally {
           set({ user: null, isAuthenticated: false });
         }
+      },
+
+      changePassword: async (currentPassword, newPassword) => {
+        await apiClient.post("/api/v1/auth/change-password", {
+          current_password: currentPassword,
+          new_password: newPassword,
+        });
       },
     }),
     {

@@ -1,11 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/features/auth/store/auth-store";
 import { useTenantBranding } from "@/features/admin/hooks/use-tenants";
+import { ChangePasswordModal } from "@/features/auth/components/ChangePasswordModal";
 import {
   LayoutDashboard, Users, MapPin, FileText,
   HardHat, Receipt, Package, Truck, LogOut,
-  Menu, X, ChevronLeft, ChevronRight, ShieldCheck, CalendarDays,
+  Menu, X, ChevronLeft, ChevronRight, ShieldCheck, CalendarDays, KeyRound,
 } from "lucide-react";
 import { cn } from "@/shared/utils/cn";
 
@@ -38,10 +39,24 @@ export function AppLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [logoError, setLogoError] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
   const { data: branding } = useTenantBranding();
   const logoUrl = resolveLogoUrl(branding?.logo_url);
 
   useEffect(() => { setLogoError(false); }, [logoUrl]);
+
+  // Close user menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   useEffect(() => {
     const link = (document.querySelector("link[rel~='icon']") as HTMLLinkElement)
@@ -58,6 +73,10 @@ export function AppLayout() {
   };
 
   return (
+    <>
+    {showChangePassword && (
+      <ChangePasswordModal onClose={() => setShowChangePassword(false)} />
+    )}
     <div className="flex h-screen bg-gray-50">
       {/* Mobile overlay backdrop */}
       {mobileOpen && (
@@ -178,29 +197,49 @@ export function AppLayout() {
         </nav>
 
         {/* User footer */}
-        <div className="border-t border-gray-200 p-3 shrink-0">
-          {!collapsed && (
-            <div className="flex items-center gap-2 px-2 py-1 mb-1">
-              <div className="w-7 h-7 rounded-full bg-brand-100 flex items-center justify-center text-xs font-bold text-brand-700 shrink-0">
-                {user?.full_name?.[0]?.toUpperCase() ?? "U"}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-gray-900 truncate">{user?.full_name}</p>
-                <p className="text-xs text-gray-400 truncate">{user?.email}</p>
-              </div>
-            </div>
-          )}
+        <div className="border-t border-gray-200 p-3 shrink-0 relative" ref={userMenuRef}>
           <button
-            onClick={handleLogout}
-            title={collapsed ? "Cerrar sesión" : undefined}
+            onClick={() => setUserMenuOpen((v) => !v)}
+            title={collapsed ? user?.full_name ?? "Usuario" : undefined}
             className={cn(
-              "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors",
+              "w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-100 transition-colors",
               collapsed && "justify-center px-2"
             )}
           >
-            <LogOut size={15} />
-            {!collapsed && "Cerrar sesión"}
+            <div className="w-7 h-7 rounded-full bg-brand-100 flex items-center justify-center text-xs font-bold text-brand-700 shrink-0">
+              {user?.full_name?.[0]?.toUpperCase() ?? "U"}
+            </div>
+            {!collapsed && (
+              <div className="flex-1 min-w-0 text-left">
+                <p className="text-xs font-medium text-gray-900 truncate">{user?.full_name}</p>
+                <p className="text-xs text-gray-400 truncate">{user?.email}</p>
+              </div>
+            )}
           </button>
+
+          {/* Dropdown menu */}
+          {userMenuOpen && (
+            <div className={cn(
+              "absolute bottom-full mb-1 left-2 right-2 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-40",
+              collapsed && "left-14 right-auto w-48 bottom-2"
+            )}>
+              <button
+                onClick={() => { setUserMenuOpen(false); setShowChangePassword(true); }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                <KeyRound size={14} className="shrink-0 text-gray-400" />
+                Cambiar contraseña
+              </button>
+              <div className="border-t border-gray-100 my-1" />
+              <button
+                onClick={() => { setUserMenuOpen(false); handleLogout(); }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+              >
+                <LogOut size={14} className="shrink-0" />
+                Cerrar sesión
+              </button>
+            </div>
+          )}
         </div>
       </aside>
 
@@ -228,5 +267,6 @@ export function AppLayout() {
         </main>
       </div>
     </div>
+    </>
   );
 }

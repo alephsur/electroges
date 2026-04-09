@@ -4,6 +4,7 @@ from app.core.config import settings
 from app.core.dependencies import CurrentUser, DbSession
 from app.core.rate_limiter import activation_limiter, get_client_ip, login_limiter
 from app.schemas.auth import (
+    ChangePasswordRequest,
     InvitationActivateRequest,
     LoginRequest,
     UserResponse,
@@ -97,6 +98,17 @@ async def activate_invitation(
     _set_auth_cookies(response, access_token, refresh_token)
     await activation_limiter.clear(ip)
     return user
+
+
+@router.post("/change-password", status_code=status.HTTP_204_NO_CONTENT)
+async def change_password(
+    data: ChangePasswordRequest,
+    current_user: CurrentUser,
+    db: DbSession,
+):
+    """Change the password of the currently authenticated user."""
+    service = AuthService(db)
+    await service.change_password(current_user, data)
 
 
 @router.get("/me", response_model=UserResponse)
