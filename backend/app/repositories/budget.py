@@ -12,20 +12,20 @@ from app.repositories.base import BaseRepository
 
 
 class BudgetRepository(BaseRepository[Budget]):
-    def __init__(self, session: AsyncSession):
-        super().__init__(Budget, session)
+    def __init__(self, session: AsyncSession, tenant_id: uuid.UUID | None = None):
+        super().__init__(Budget, session, tenant_id)
 
     async def get_next_budget_number(self) -> str:
         """
-        Generates the next sequential number: PRES-YYYY-NNNN.
-        Counts existing budgets for the current year (including versions).
+        Generates the next sequential number: PRES-YYYY-NNNN (per tenant).
         """
         year = datetime.now().year
-        result = await self.session.execute(
-            select(func.count(Budget.id)).where(
-                Budget.budget_number.like(f"PRES-{year}-%")
-            )
+        stmt = select(func.count(Budget.id)).where(
+            Budget.budget_number.like(f"PRES-{year}-%")
         )
+        if self.tenant_id is not None:
+            stmt = stmt.where(Budget.tenant_id == self.tenant_id)
+        result = await self.session.execute(stmt)
         count = result.scalar() or 0
         return f"PRES-{year}-{(count + 1):04d}"
 
@@ -48,6 +48,10 @@ class BudgetRepository(BaseRepository[Budget]):
             selectinload(Budget.lines),
         )
         count_stmt = select(func.count()).select_from(Budget)
+
+        if self.tenant_id is not None:
+            stmt = stmt.where(Budget.tenant_id == self.tenant_id)
+            count_stmt = count_stmt.where(Budget.tenant_id == self.tenant_id)
 
         if latest_only:
             stmt = stmt.where(Budget.is_latest_version.is_(True))
@@ -80,7 +84,7 @@ class BudgetRepository(BaseRepository[Budget]):
             stmt = stmt.where(search_filter)
             count_stmt = count_stmt.where(search_filter)
 
-        stmt = stmt.order_by(Budget.issue_date.desc()).offset(skip).limit(limit)
+        stmt = stmt.order_by(Budget.created_at.desc()).offset(skip).limit(limit)
 
         rows = await self.session.execute(stmt)
         total_result = await self.session.execute(count_stmt)
@@ -90,7 +94,7 @@ class BudgetRepository(BaseRepository[Budget]):
         """Eager-loads customer (with addresses), site_visit, lines with inventory_item, and child_budgets."""
         from app.models.customer import Customer, CustomerAddress
 
-        result = await self.session.execute(
+        stmt = (
             select(Budget)
             .options(
                 selectinload(Budget.customer).selectinload(Customer.addresses),
@@ -101,6 +105,8 @@ class BudgetRepository(BaseRepository[Budget]):
             )
             .where(Budget.id == budget_id)
         )
+        stmt = self._tenant_filter(stmt)
+        result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
     async def get_version_chain(self, budget_id: uuid.UUID) -> list[Budget]:
@@ -108,14 +114,14 @@ class BudgetRepository(BaseRepository[Budget]):
         Returns all versions in the chain for this budget,
         ordered by version ASC.
         """
-        # First, resolve the root of the chain
+        # First, resolve the root of the chain (get_by_id already applies tenant filter)
         budget = await self.get_by_id(budget_id)
         if not budget:
             return []
         root_id = budget.parent_budget_id or budget.id
 
         # Get all budgets that share this root (either are the root or have it as parent)
-        result = await self.session.execute(
+        stmt = (
             select(Budget)
             .options(selectinload(Budget.lines))
             .where(
@@ -126,6 +132,8 @@ class BudgetRepository(BaseRepository[Budget]):
             )
             .order_by(Budget.version.asc())
         )
+        stmt = self._tenant_filter(stmt)
+        result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
     async def get_by_customer(
@@ -140,6 +148,7 @@ class BudgetRepository(BaseRepository[Budget]):
         if latest_only:
             stmt = stmt.where(Budget.is_latest_version.is_(True))
         stmt = stmt.order_by(Budget.issue_date.desc())
+        stmt = self._tenant_filter(stmt)
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
@@ -159,5 +168,5 @@ class BudgetRepository(BaseRepository[Budget]):
 
 
 class BudgetLineRepository(BaseRepository[BudgetLine]):
-    def __init__(self, session: AsyncSession):
-        super().__init__(BudgetLine, session)
+    def __init__(self, session: AsyncSession, tenant_id: uuid.UUID | None = None):
+        super().__init__(BudgetLine, session, tenant_id)

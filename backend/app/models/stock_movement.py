@@ -24,6 +24,12 @@ class StockMovement(UUIDMixin, TimestampMixin, Base):
 
     __tablename__ = "stock_movements"
 
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     inventory_item_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("inventory_items.id"), nullable=False, index=True
     )

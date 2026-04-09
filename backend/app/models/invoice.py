@@ -14,6 +14,7 @@ from sqlalchemy import (
     Numeric,
     String,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -44,9 +45,18 @@ class PaymentMethod(str, enum.Enum):
 
 class Invoice(UUIDMixin, TimestampMixin, Base):
     __tablename__ = "invoices"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "invoice_number", name="uq_invoices_tenant_number"),
+    )
 
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     invoice_number: Mapped[str] = mapped_column(
-        String(25), unique=True, nullable=False
+        String(25), nullable=False
     )
     is_rectification: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False

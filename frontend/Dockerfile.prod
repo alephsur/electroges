@@ -1,0 +1,17 @@
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+# Empty VITE_API_URL so axios uses relative paths (same-origin via nginx proxy).
+ARG VITE_API_URL=""
+ENV VITE_API_URL=$VITE_API_URL
+RUN npm run build
+
+FROM nginx:alpine
+COPY --from=builder /app/dist /usr/share/nginx/html
+# Copy as a template; BACKEND_URL is substituted at container start.
+COPY nginx.conf /etc/nginx/conf.d/default.conf.template
+EXPOSE 80
+# envsubst replaces ${BACKEND_URL} while leaving nginx variables ($uri, etc.) untouched.
+CMD ["/bin/sh", "-c", "if [ -z \"$BACKEND_URL\" ]; then echo 'ERROR: BACKEND_URL is not set'; exit 1; fi && envsubst '${BACKEND_URL}' < /etc/nginx/conf.d/default.conf.template > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"]

@@ -6,7 +6,7 @@ from datetime import date
 from fastapi import APIRouter, File, Query, UploadFile, status
 from fastapi.responses import Response
 
-from app.core.dependencies import CurrentUser, DbSession
+from app.core.dependencies import CurrentTenantId, CurrentUser, DbSession
 from app.schemas.budget import (
     BudgetCreate,
     BudgetFromVisitRequest,
@@ -29,22 +29,22 @@ router = APIRouter(tags=["Presupuestos"])
 # ── Company settings ───────────────────────────────────────────────────────────
 
 @router.get("/company-settings", response_model=CompanySettingsResponse)
-async def get_company_settings(db: DbSession, _: CurrentUser):
-    return await BudgetService(db).get_company_settings()
+async def get_company_settings(db: DbSession, _: CurrentUser, tenant_id: CurrentTenantId):
+    return await BudgetService(db, tenant_id).get_company_settings()
 
 
 @router.patch("/company-settings", response_model=CompanySettingsResponse)
 async def update_company_settings(
-    data: CompanySettingsUpdate, db: DbSession, _: CurrentUser
+    data: CompanySettingsUpdate, db: DbSession, _: CurrentUser, tenant_id: CurrentTenantId
 ):
-    return await BudgetService(db).update_company_settings(data)
+    return await BudgetService(db, tenant_id).update_company_settings(data)
 
 
 @router.post("/company-settings/logo")
 async def upload_company_logo(
-    db: DbSession, _: CurrentUser, file: UploadFile = File(...)
+    db: DbSession, _: CurrentUser, tenant_id: CurrentTenantId, file: UploadFile = File(...)
 ):
-    logo_path = await BudgetService(db).upload_company_logo(file)
+    logo_path = await BudgetService(db, tenant_id).upload_company_logo(file)
     return {"logo_path": logo_path}
 
 
@@ -54,6 +54,7 @@ async def upload_company_logo(
 async def list_budgets(
     db: DbSession,
     _: CurrentUser,
+    tenant_id: CurrentTenantId,
     q: str | None = Query(default=None),
     customer_id: uuid.UUID | None = Query(default=None),
     status_filter: str | None = Query(default=None, alias="status"),
@@ -63,7 +64,7 @@ async def list_budgets(
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=100, ge=1, le=200),
 ):
-    return await BudgetService(db).list_budgets(
+    return await BudgetService(db, tenant_id).list_budgets(
         q=q,
         customer_id=customer_id,
         status_filter=status_filter,
@@ -76,8 +77,8 @@ async def list_budgets(
 
 
 @router.post("/budgets", response_model=BudgetResponse, status_code=status.HTTP_201_CREATED)
-async def create_budget(data: BudgetCreate, db: DbSession, _: CurrentUser):
-    return await BudgetService(db).create_budget(data)
+async def create_budget(data: BudgetCreate, db: DbSession, _: CurrentUser, tenant_id: CurrentTenantId):
+    return await BudgetService(db, tenant_id).create_budget(data)
 
 
 @router.post(
@@ -86,35 +87,35 @@ async def create_budget(data: BudgetCreate, db: DbSession, _: CurrentUser):
     status_code=status.HTTP_201_CREATED,
 )
 async def create_budget_from_visit(
-    data: BudgetFromVisitRequest, db: DbSession, _: CurrentUser
+    data: BudgetFromVisitRequest, db: DbSession, _: CurrentUser, tenant_id: CurrentTenantId
 ):
-    return await BudgetService(db).create_budget_from_visit(data)
+    return await BudgetService(db, tenant_id).create_budget_from_visit(data)
 
 
 @router.get("/budgets/{budget_id}", response_model=BudgetResponse)
-async def get_budget(budget_id: uuid.UUID, db: DbSession, _: CurrentUser):
-    return await BudgetService(db).get_budget(budget_id)
+async def get_budget(budget_id: uuid.UUID, db: DbSession, _: CurrentUser, tenant_id: CurrentTenantId):
+    return await BudgetService(db, tenant_id).get_budget(budget_id)
 
 
 @router.patch("/budgets/{budget_id}", response_model=BudgetResponse)
 async def update_budget(
-    budget_id: uuid.UUID, data: BudgetUpdate, db: DbSession, _: CurrentUser
+    budget_id: uuid.UUID, data: BudgetUpdate, db: DbSession, _: CurrentUser, tenant_id: CurrentTenantId
 ):
-    return await BudgetService(db).update_budget(budget_id, data)
+    return await BudgetService(db, tenant_id).update_budget(budget_id, data)
 
 
 @router.get(
     "/budgets/{budget_id}/versions", response_model=list[BudgetVersionInfo]
 )
-async def get_budget_versions(budget_id: uuid.UUID, db: DbSession, _: CurrentUser):
-    return await BudgetService(db).get_budget_versions(budget_id)
+async def get_budget_versions(budget_id: uuid.UUID, db: DbSession, _: CurrentUser, tenant_id: CurrentTenantId):
+    return await BudgetService(db, tenant_id).get_budget_versions(budget_id)
 
 
 # ── Lifecycle ──────────────────────────────────────────────────────────────────
 
 @router.post("/budgets/{budget_id}/send", response_model=BudgetResponse)
-async def send_budget(budget_id: uuid.UUID, db: DbSession, _: CurrentUser):
-    return await BudgetService(db).send_budget(budget_id)
+async def send_budget(budget_id: uuid.UUID, db: DbSession, _: CurrentUser, tenant_id: CurrentTenantId):
+    return await BudgetService(db, tenant_id).send_budget(budget_id)
 
 
 @router.post("/budgets/{budget_id}/reject", response_model=BudgetResponse)
@@ -122,33 +123,34 @@ async def reject_budget(
     budget_id: uuid.UUID,
     db: DbSession,
     _: CurrentUser,
+    tenant_id: CurrentTenantId,
     notes: str | None = Query(default=None),
 ):
-    return await BudgetService(db).reject_budget(budget_id, notes)
+    return await BudgetService(db, tenant_id).reject_budget(budget_id, notes)
 
 
 @router.post("/budgets/{budget_id}/new-version", response_model=BudgetResponse)
-async def create_new_version(budget_id: uuid.UUID, db: DbSession, _: CurrentUser):
-    return await BudgetService(db).create_new_version(budget_id)
+async def create_new_version(budget_id: uuid.UUID, db: DbSession, _: CurrentUser, tenant_id: CurrentTenantId):
+    return await BudgetService(db, tenant_id).create_new_version(budget_id)
 
 
 @router.get(
     "/budgets/{budget_id}/work-order-preview", response_model=WorkOrderPreview
 )
-async def get_work_order_preview(budget_id: uuid.UUID, db: DbSession, _: CurrentUser):
-    return await BudgetService(db).get_work_order_preview(budget_id)
+async def get_work_order_preview(budget_id: uuid.UUID, db: DbSession, _: CurrentUser, tenant_id: CurrentTenantId):
+    return await BudgetService(db, tenant_id).get_work_order_preview(budget_id)
 
 
 @router.post("/budgets/{budget_id}/accept")
-async def accept_budget(budget_id: uuid.UUID, db: DbSession, _: CurrentUser):
-    return await BudgetService(db).accept_and_create_work_order(budget_id)
+async def accept_budget(budget_id: uuid.UUID, db: DbSession, _: CurrentUser, tenant_id: CurrentTenantId):
+    return await BudgetService(db, tenant_id).accept_and_create_work_order(budget_id)
 
 
 # ── PDF ────────────────────────────────────────────────────────────────────────
 
 @router.post("/budgets/{budget_id}/generate-pdf")
-async def generate_pdf(budget_id: uuid.UUID, db: DbSession, _: CurrentUser):
-    pdf_bytes = await BudgetService(db).generate_pdf(budget_id)
+async def generate_pdf(budget_id: uuid.UUID, db: DbSession, _: CurrentUser, tenant_id: CurrentTenantId):
+    pdf_bytes = await BudgetService(db, tenant_id).generate_pdf(budget_id)
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
@@ -159,10 +161,10 @@ async def generate_pdf(budget_id: uuid.UUID, db: DbSession, _: CurrentUser):
 
 
 @router.get("/budgets/{budget_id}/pdf")
-async def download_pdf(budget_id: uuid.UUID, db: DbSession, _: CurrentUser):
+async def download_pdf(budget_id: uuid.UUID, db: DbSession, _: CurrentUser, tenant_id: CurrentTenantId):
     """Download existing PDF. Generates it on demand if not yet created."""
     # Always regenerate to ensure it's up to date; caching is a future concern
-    pdf_bytes = await BudgetService(db).generate_pdf(budget_id)
+    pdf_bytes = await BudgetService(db, tenant_id).generate_pdf(budget_id)
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
@@ -180,9 +182,9 @@ async def download_pdf(budget_id: uuid.UUID, db: DbSession, _: CurrentUser):
     status_code=status.HTTP_201_CREATED,
 )
 async def add_line(
-    budget_id: uuid.UUID, data: BudgetLineCreate, db: DbSession, _: CurrentUser
+    budget_id: uuid.UUID, data: BudgetLineCreate, db: DbSession, _: CurrentUser, tenant_id: CurrentTenantId
 ):
-    return await BudgetService(db).add_line(budget_id, data)
+    return await BudgetService(db, tenant_id).add_line(budget_id, data)
 
 
 @router.patch(
@@ -194,21 +196,22 @@ async def update_line(
     data: BudgetLineUpdate,
     db: DbSession,
     _: CurrentUser,
+    tenant_id: CurrentTenantId,
 ):
-    return await BudgetService(db).update_line(budget_id, line_id, data)
+    return await BudgetService(db, tenant_id).update_line(budget_id, line_id, data)
 
 
 @router.delete(
     "/budgets/{budget_id}/lines/{line_id}", status_code=status.HTTP_204_NO_CONTENT
 )
 async def delete_line(
-    budget_id: uuid.UUID, line_id: uuid.UUID, db: DbSession, _: CurrentUser
+    budget_id: uuid.UUID, line_id: uuid.UUID, db: DbSession, _: CurrentUser, tenant_id: CurrentTenantId
 ):
-    await BudgetService(db).delete_line(budget_id, line_id)
+    await BudgetService(db, tenant_id).delete_line(budget_id, line_id)
 
 
 @router.put("/budgets/{budget_id}/lines/reorder", response_model=BudgetResponse)
 async def reorder_lines(
-    budget_id: uuid.UUID, data: ReorderLinesRequest, db: DbSession, _: CurrentUser
+    budget_id: uuid.UUID, data: ReorderLinesRequest, db: DbSession, _: CurrentUser, tenant_id: CurrentTenantId
 ):
-    return await BudgetService(db).reorder_lines(budget_id, data)
+    return await BudgetService(db, tenant_id).reorder_lines(budget_id, data)

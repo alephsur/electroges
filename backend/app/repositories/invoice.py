@@ -15,19 +15,20 @@ from app.repositories.base import BaseRepository
 
 
 class InvoiceRepository(BaseRepository[Invoice]):
-    def __init__(self, session: AsyncSession):
-        super().__init__(Invoice, session)
+    def __init__(self, session: AsyncSession, tenant_id: uuid.UUID | None = None):
+        super().__init__(Invoice, session, tenant_id)
 
     async def get_next_invoice_number(
         self, is_rectification: bool = False
     ) -> str:
         year = datetime.now().year
         prefix = f"FAC-R-{year}-" if is_rectification else f"FAC-{year}-"
-        result = await self.session.execute(
-            select(func.count(Invoice.id)).where(
-                Invoice.invoice_number.like(f"{prefix}%")
-            )
+        stmt = select(func.count(Invoice.id)).where(
+            Invoice.invoice_number.like(f"{prefix}%")
         )
+        if self.tenant_id is not None:
+            stmt = stmt.where(Invoice.tenant_id == self.tenant_id)
+        result = await self.session.execute(stmt)
         count = result.scalar() or 0
         return f"{prefix}{(count + 1):04d}"
 
@@ -53,6 +54,10 @@ class InvoiceRepository(BaseRepository[Invoice]):
             selectinload(Invoice.lines),
         )
         count_stmt = select(func.count()).select_from(Invoice)
+
+        if self.tenant_id is not None:
+            stmt = stmt.where(Invoice.tenant_id == self.tenant_id)
+            count_stmt = count_stmt.where(Invoice.tenant_id == self.tenant_id)
 
         if customer_id is not None:
             stmt = stmt.where(Invoice.customer_id == customer_id)
@@ -106,7 +111,7 @@ class InvoiceRepository(BaseRepository[Invoice]):
         total_result = await self.session.execute(count_stmt)
         total = total_result.scalar() or 0
 
-        stmt = stmt.order_by(Invoice.issue_date.desc()).offset(skip).limit(
+        stmt = stmt.order_by(Invoice.created_at.desc()).offset(skip).limit(
             limit
         )
         result = await self.session.execute(stmt)
@@ -115,7 +120,7 @@ class InvoiceRepository(BaseRepository[Invoice]):
     async def get_with_full_detail(
         self, invoice_id: uuid.UUID
     ) -> Invoice | None:
-        result = await self.session.execute(
+        stmt = (
             select(Invoice)
             .where(Invoice.id == invoice_id)
             .options(
@@ -126,12 +131,14 @@ class InvoiceRepository(BaseRepository[Invoice]):
                 selectinload(Invoice.rectifies_invoice),
             )
         )
+        stmt = self._tenant_filter(stmt)
+        result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
     async def get_by_work_order(
         self, work_order_id: uuid.UUID
     ) -> list[Invoice]:
-        result = await self.session.execute(
+        stmt = (
             select(Invoice)
             .where(Invoice.work_order_id == work_order_id)
             .options(
@@ -141,12 +148,14 @@ class InvoiceRepository(BaseRepository[Invoice]):
             )
             .order_by(Invoice.issue_date.desc())
         )
+        stmt = self._tenant_filter(stmt)
+        result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
     async def get_by_customer(
         self, customer_id: uuid.UUID
     ) -> list[Invoice]:
-        result = await self.session.execute(
+        stmt = (
             select(Invoice)
             .where(Invoice.customer_id == customer_id)
             .options(
@@ -155,6 +164,8 @@ class InvoiceRepository(BaseRepository[Invoice]):
             )
             .order_by(Invoice.issue_date.desc())
         )
+        stmt = self._tenant_filter(stmt)
+        result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
     async def get_total_invoiced_for_work_order(
@@ -176,7 +187,7 @@ class InvoiceRepository(BaseRepository[Invoice]):
         )
 
     async def get_overdue_invoices(self) -> list[Invoice]:
-        result = await self.session.execute(
+        stmt = (
             select(Invoice)
             .where(Invoice.status == "sent")
             .where(Invoice.due_date < date.today())
@@ -187,6 +198,9 @@ class InvoiceRepository(BaseRepository[Invoice]):
             )
             .order_by(Invoice.due_date)
         )
+        if self.tenant_id is not None:
+            stmt = stmt.where(Invoice.tenant_id == self.tenant_id)
+        result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
     def _calculate_total(self, invoice: Invoice) -> Decimal:
@@ -203,8 +217,8 @@ class InvoiceRepository(BaseRepository[Invoice]):
 
 
 class InvoiceLineRepository(BaseRepository[InvoiceLine]):
-    def __init__(self, session: AsyncSession):
-        super().__init__(InvoiceLine, session)
+    def __init__(self, session: AsyncSession, tenant_id: uuid.UUID | None = None):
+        super().__init__(InvoiceLine, session, tenant_id)
 
     async def get_by_invoice(
         self, invoice_id: uuid.UUID
@@ -218,5 +232,5 @@ class InvoiceLineRepository(BaseRepository[InvoiceLine]):
 
 
 class PaymentRepository(BaseRepository[Payment]):
-    def __init__(self, session: AsyncSession):
-        super().__init__(Payment, session)
+    def __init__(self, session: AsyncSession, tenant_id: uuid.UUID | None = None):
+        super().__init__(Payment, session, tenant_id)

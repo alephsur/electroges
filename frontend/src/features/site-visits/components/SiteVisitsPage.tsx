@@ -1,6 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { Routes, Route, useMatch, useParams } from 'react-router-dom'
 import { MapPin, Plus, Search } from 'lucide-react'
-import { useSiteVisitStore } from '../store/site-visit-store'
+import { cn } from '@/shared/utils/cn'
+import { useSiteVisitStore, PAGE_SIZE_OPTIONS } from '../store/site-visit-store'
+import type { PageSize } from '../store/site-visit-store'
 import { useSiteVisit, useSiteVisits } from '../hooks/use-site-visits'
 import { SiteVisitList } from './SiteVisitList'
 import { SiteVisitDetail } from './SiteVisitDetail'
@@ -15,33 +18,61 @@ const STATUS_OPTIONS: { value: SiteVisitStatus; label: string }[] = [
   { value: 'no_show', label: 'No presentado' },
 ]
 
+function SiteVisitDetailRoute() {
+  const { visitId } = useParams<{ visitId: string }>()
+  const { setActiveTab } = useSiteVisitStore()
+  const { data: visit } = useSiteVisit(visitId ?? null)
+
+  useEffect(() => {
+    setActiveTab('info')
+  }, [visitId])
+
+  if (!visit) {
+    return (
+      <div className="flex h-full items-center justify-center text-sm text-gray-400">
+        Cargando...
+      </div>
+    )
+  }
+
+  return <SiteVisitDetail visit={visit} />
+}
+
 export function SiteVisitsPage() {
   const [showForm, setShowForm] = useState(false)
   const {
     searchQuery,
     statusFilter,
-    selectedVisitId,
+    page,
+    pageSize,
     setSearchQuery,
     setStatusFilter,
+    setPage,
+    setPageSize,
   } = useSiteVisitStore()
 
   const { data, isLoading } = useSiteVisits({
     q: searchQuery || undefined,
     status: statusFilter ?? undefined,
-    limit: 100,
+    skip: (page - 1) * pageSize,
+    limit: pageSize,
   })
 
-  const { data: selectedVisit } = useSiteVisit(selectedVisitId)
-
   const visits = data?.items ?? []
+  const totalPages = data ? Math.ceil(data.total / pageSize) : 1
+  const detailMatch = useMatch('/visitas/:visitId')
+  const isDetailSelected = !!detailMatch
 
   return (
     <div className="flex h-full overflow-hidden">
-      {/* Left panel: list */}
+      {/* Left panel — list */}
       <div
-        className={`flex flex-col border-r border-gray-100 ${
-          selectedVisitId ? 'w-[45%]' : 'flex-1'
-        } min-w-0`}
+        className={cn(
+          'flex flex-col border-r border-gray-100 min-w-0',
+          isDetailSelected
+            ? 'hidden lg:flex lg:w-[45%] lg:shrink-0'
+            : 'flex flex-1',
+        )}
       >
         {/* Header */}
         <div className="shrink-0 border-b border-gray-100 p-4">
@@ -58,7 +89,8 @@ export function SiteVisitsPage() {
               className="flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
             >
               <Plus size={15} />
-              Nueva visita
+              <span className="hidden sm:inline">Nueva visita</span>
+              <span className="sm:hidden">Nueva</span>
             </button>
           </div>
 
@@ -111,20 +143,70 @@ export function SiteVisitsPage() {
         <div className="flex-1 overflow-y-auto">
           <SiteVisitList visits={visits} isLoading={isLoading} />
         </div>
+
+        {/* Pagination */}
+        {!isLoading && data && data.total > 0 && (
+          <div className="shrink-0 border-t border-gray-100 px-4 py-2 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 text-xs text-gray-500">
+              <span>Por página:</span>
+              {PAGE_SIZE_OPTIONS.map((size) => (
+                <button
+                  key={size}
+                  onClick={() => setPageSize(size as PageSize)}
+                  className={`rounded px-2 py-0.5 font-medium transition-colors ${
+                    pageSize === size
+                      ? 'bg-gray-900 text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {size}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2 text-xs text-gray-500">
+              <span>
+                {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, data.total)} de {data.total}
+              </span>
+              <div className="flex gap-1">
+                <button
+                  onClick={() => setPage(page - 1)}
+                  disabled={page <= 1}
+                  className="rounded px-2 py-0.5 bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed font-medium"
+                >
+                  ‹
+                </button>
+                <button
+                  onClick={() => setPage(page + 1)}
+                  disabled={page >= totalPages}
+                  className="rounded px-2 py-0.5 bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed font-medium"
+                >
+                  ›
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Right panel: detail */}
-      {selectedVisitId && (
-        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-          {selectedVisit ? (
-            <SiteVisitDetail visit={selectedVisit} />
-          ) : (
-            <div className="flex h-full items-center justify-center text-sm text-gray-400">
-              Cargando...
-            </div>
-          )}
-        </div>
-      )}
+      {/* Right panel — detail via nested routes */}
+      <div
+        className={cn(
+          'flex-1 flex flex-col overflow-hidden min-w-0',
+          !isDetailSelected && 'hidden lg:flex',
+        )}
+      >
+        <Routes>
+          <Route
+            index
+            element={
+              <div className="flex h-full items-center justify-center text-sm text-gray-400">
+                Selecciona una visita para ver el detalle
+              </div>
+            }
+          />
+          <Route path=":visitId" element={<SiteVisitDetailRoute />} />
+        </Routes>
+      </div>
 
       {showForm && <SiteVisitForm onClose={() => setShowForm(false)} />}
     </div>

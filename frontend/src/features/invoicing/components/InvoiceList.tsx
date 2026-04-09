@@ -1,4 +1,5 @@
 import { FileText } from 'lucide-react'
+import { useNavigate, useMatch } from 'react-router-dom'
 import { InvoiceStatusBadge } from './InvoiceStatusBadge'
 import { PaymentProgressBar } from './PaymentProgressBar'
 import type { InvoiceSummary } from '../types'
@@ -16,25 +17,19 @@ function fmtDate(s: string) {
 
 interface Props {
   invoices: InvoiceSummary[]
-  selectedId: string | null
-  onSelect: (id: string) => void
   isLoading?: boolean
 }
 
-export function InvoiceList({
-  invoices,
-  selectedId,
-  onSelect,
-  isLoading,
-}: Props) {
+export function InvoiceList({ invoices, isLoading }: Props) {
+  const navigate = useNavigate()
+  const match = useMatch('/facturacion/:invoiceId')
+  const selectedId = match?.params.invoiceId ?? null
+
   if (isLoading) {
     return (
       <div className="flex flex-col gap-2 p-3">
         {Array.from({ length: 5 }).map((_, i) => (
-          <div
-            key={i}
-            className="h-16 animate-pulse rounded-lg bg-gray-100"
-          />
+          <div key={i} className="h-16 animate-pulse rounded-lg bg-gray-100" />
         ))}
       </div>
     )
@@ -54,7 +49,7 @@ export function InvoiceList({
       {invoices.map((inv) => (
         <button
           key={inv.id}
-          onClick={() => onSelect(inv.id)}
+          onClick={() => navigate(`/facturacion/${inv.id}`)}
           className={`w-full p-3 text-left transition-colors hover:bg-gray-50 ${
             selectedId === inv.id ? 'bg-blue-50' : ''
           }`}
@@ -94,12 +89,9 @@ export function InvoiceList({
               }`}
             >
               Vence {fmtDate(inv.due_date)}
-              {inv.days_overdue > 0 &&
-                ` · ${inv.days_overdue}d vencida`}
+              {inv.days_overdue > 0 && ` · ${inv.days_overdue}d vencida`}
             </span>
-            <span className="font-medium text-gray-800">
-              {fmt(inv.total)} €
-            </span>
+            <span className="font-medium text-gray-800">{fmt(inv.total)} €</span>
           </div>
 
           {/* Row 4: payment progress */}

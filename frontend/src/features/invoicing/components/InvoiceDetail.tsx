@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Send,
   FileText,
@@ -7,6 +8,7 @@ import {
   RefreshCw,
   Bell,
   Plus,
+  ArrowLeft,
 } from 'lucide-react'
 import { useInvoice, useSendInvoice, useCancelInvoice } from '../hooks/use-invoices'
 import { useGenerateInvoicePdf, useDownloadInvoicePdf } from '../hooks/use-invoice-pdf'
@@ -25,10 +27,10 @@ type ActiveTab = 'lines' | 'payments' | 'notes'
 
 interface Props {
   invoiceId: string
-  onSelectInvoice: (id: string) => void
 }
 
-export function InvoiceDetail({ invoiceId, onSelectInvoice }: Props) {
+export function InvoiceDetail({ invoiceId }: Props) {
+  const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<ActiveTab>('lines')
   const [showPaymentForm, setShowPaymentForm] = useState(false)
   const [showRectModal, setShowRectModal] = useState(false)
@@ -77,6 +79,15 @@ export function InvoiceDetail({ invoiceId, onSelectInvoice }: Props) {
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
+      {/* Mobile back button */}
+      <button
+        onClick={() => navigate('/facturacion')}
+        className="flex items-center gap-1.5 px-4 pt-3 pb-1 text-sm text-gray-500 hover:text-gray-700 lg:hidden"
+      >
+        <ArrowLeft size={14} />
+        Facturas
+      </button>
+
       {/* Header */}
       <div className="border-b border-gray-100 bg-white p-4">
         {/* Top row */}
@@ -333,7 +344,7 @@ export function InvoiceDetail({ invoiceId, onSelectInvoice }: Props) {
           invoiceNumber={invoice.invoice_number}
           onSuccess={(newId) => {
             setShowRectModal(false)
-            onSelectInvoice(newId)
+            navigate(`/facturacion/${newId}`)
           }}
           onClose={() => setShowRectModal(false)}
         />

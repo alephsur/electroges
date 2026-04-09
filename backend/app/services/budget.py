@@ -39,14 +39,15 @@ logger = logging.getLogger(__name__)
 
 
 class BudgetService:
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: AsyncSession, tenant_id: uuid.UUID):
         self._session = session
-        self._repo = BudgetRepository(session)
-        self._line_repo = BudgetLineRepository(session)
-        self._company_repo = CompanySettingsRepository(session)
-        self._customer_repo = CustomerRepository(session)
-        self._item_repo = InventoryItemRepository(session)
-        self._visit_repo = SiteVisitRepository(session)
+        self._tenant_id = tenant_id
+        self._repo = BudgetRepository(session, tenant_id)
+        self._line_repo = BudgetLineRepository(session, tenant_id)
+        self._company_repo = CompanySettingsRepository(session, tenant_id)
+        self._customer_repo = CustomerRepository(session, tenant_id)
+        self._item_repo = InventoryItemRepository(session, tenant_id)
+        self._visit_repo = SiteVisitRepository(session, tenant_id)
 
     # ── List / detail ──────────────────────────────────────────────────────────
 
@@ -120,6 +121,7 @@ class BudgetService:
             discount_pct=data.discount_pct,
             notes=data.notes,
             client_notes=data.client_notes,
+            tenant_id=self._tenant_id,
         )
         budget = await self._repo.create(budget)
 
@@ -173,6 +175,7 @@ class BudgetService:
             discount_pct=data.discount_pct,
             notes=data.notes,
             client_notes=data.client_notes,
+            tenant_id=self._tenant_id,
         )
         budget = await self._repo.create(budget)
 
@@ -296,6 +299,7 @@ class BudgetService:
             discount_pct=original.discount_pct,
             notes=original.notes,
             client_notes=original.client_notes,
+            tenant_id=self._tenant_id,
         )
         new_budget = await self._repo.create(new_budget)
 

@@ -5,7 +5,7 @@ import uuid
 from fastapi import APIRouter, Query, Response, status
 from fastapi.responses import StreamingResponse
 
-from app.core.dependencies import CurrentUser, DbSession
+from app.core.dependencies import CurrentTenantId, CurrentUser, DbSession
 from app.schemas.invoice import (
     InvoiceCreate,
     InvoiceFilters,
@@ -31,6 +31,7 @@ router = APIRouter(prefix="/invoices", tags=["invoices"])
 async def list_invoices(
     db: DbSession,
     _: CurrentUser,
+    tenant_id: CurrentTenantId,
     q: str | None = Query(default=None),
     customer_id: uuid.UUID | None = Query(default=None),
     work_order_id: uuid.UUID | None = Query(default=None),
@@ -54,7 +55,7 @@ async def list_invoices(
         skip=skip,
         limit=limit,
     )
-    svc = InvoiceService(db)
+    svc = InvoiceService(db, tenant_id)
     return await svc.list_invoices(filters)
 
 
@@ -65,8 +66,9 @@ async def create_invoice(
     data: InvoiceCreate,
     db: DbSession,
     _: CurrentUser,
+    tenant_id: CurrentTenantId,
 ):
-    svc = InvoiceService(db)
+    svc = InvoiceService(db, tenant_id)
     return await svc.create_invoice(data)
 
 
@@ -79,8 +81,9 @@ async def create_invoice_from_work_order(
     data: InvoiceFromWorkOrderRequest,
     db: DbSession,
     _: CurrentUser,
+    tenant_id: CurrentTenantId,
 ):
-    svc = InvoiceService(db)
+    svc = InvoiceService(db, tenant_id)
     return await svc.create_from_work_order(data)
 
 
@@ -89,8 +92,9 @@ async def get_invoice(
     invoice_id: uuid.UUID,
     db: DbSession,
     _: CurrentUser,
+    tenant_id: CurrentTenantId,
 ):
-    svc = InvoiceService(db)
+    svc = InvoiceService(db, tenant_id)
     return await svc.get_invoice(invoice_id)
 
 
@@ -100,8 +104,9 @@ async def update_invoice(
     data: InvoiceUpdate,
     db: DbSession,
     _: CurrentUser,
+    tenant_id: CurrentTenantId,
 ):
-    svc = InvoiceService(db)
+    svc = InvoiceService(db, tenant_id)
     return await svc.update_invoice(invoice_id, data)
 
 
@@ -110,8 +115,9 @@ async def send_invoice(
     invoice_id: uuid.UUID,
     db: DbSession,
     _: CurrentUser,
+    tenant_id: CurrentTenantId,
 ):
-    svc = InvoiceService(db)
+    svc = InvoiceService(db, tenant_id)
     return await svc.send_invoice(invoice_id)
 
 
@@ -121,8 +127,9 @@ async def cancel_invoice(
     reason: str,
     db: DbSession,
     _: CurrentUser,
+    tenant_id: CurrentTenantId,
 ):
-    svc = InvoiceService(db)
+    svc = InvoiceService(db, tenant_id)
     return await svc.cancel_invoice(invoice_id, reason)
 
 
@@ -132,8 +139,9 @@ async def create_rectification(
     data: RectificationRequest,
     db: DbSession,
     _: CurrentUser,
+    tenant_id: CurrentTenantId,
 ):
-    svc = InvoiceService(db)
+    svc = InvoiceService(db, tenant_id)
     return await svc.create_rectification(invoice_id, data)
 
 
@@ -144,8 +152,9 @@ async def generate_pdf(
     invoice_id: uuid.UUID,
     db: DbSession,
     _: CurrentUser,
+    tenant_id: CurrentTenantId,
 ):
-    svc = InvoiceService(db)
+    svc = InvoiceService(db, tenant_id)
     pdf_bytes = await svc.generate_pdf(invoice_id)
     return Response(
         content=pdf_bytes,
@@ -161,12 +170,13 @@ async def download_pdf(
     invoice_id: uuid.UUID,
     db: DbSession,
     _: CurrentUser,
+    tenant_id: CurrentTenantId,
 ):
     from pathlib import Path
 
     from fastapi import HTTPException
 
-    svc = InvoiceService(db)
+    svc = InvoiceService(db, tenant_id)
     invoice = await svc.get_invoice(invoice_id)
     if not invoice.has_pdf or not invoice.pdf_path:
         raise HTTPException(
@@ -199,8 +209,9 @@ async def get_payment_reminder(
     invoice_id: uuid.UUID,
     db: DbSession,
     _: CurrentUser,
+    tenant_id: CurrentTenantId,
 ):
-    svc = InvoiceService(db)
+    svc = InvoiceService(db, tenant_id)
     return await svc.get_payment_reminder(invoice_id)
 
 
@@ -216,8 +227,9 @@ async def add_line(
     data: InvoiceLineCreate,
     db: DbSession,
     _: CurrentUser,
+    tenant_id: CurrentTenantId,
 ):
-    svc = InvoiceService(db)
+    svc = InvoiceService(db, tenant_id)
     return await svc.add_line(invoice_id, data)
 
 
@@ -230,8 +242,9 @@ async def update_line(
     data: InvoiceLineUpdate,
     db: DbSession,
     _: CurrentUser,
+    tenant_id: CurrentTenantId,
 ):
-    svc = InvoiceService(db)
+    svc = InvoiceService(db, tenant_id)
     return await svc.update_line(invoice_id, line_id, data)
 
 
@@ -243,8 +256,9 @@ async def delete_line(
     line_id: uuid.UUID,
     db: DbSession,
     _: CurrentUser,
+    tenant_id: CurrentTenantId,
 ):
-    svc = InvoiceService(db)
+    svc = InvoiceService(db, tenant_id)
     return await svc.delete_line(invoice_id, line_id)
 
 
@@ -256,8 +270,9 @@ async def reorder_lines(
     data: ReorderLinesRequest,
     db: DbSession,
     _: CurrentUser,
+    tenant_id: CurrentTenantId,
 ):
-    svc = InvoiceService(db)
+    svc = InvoiceService(db, tenant_id)
     return await svc.reorder_lines(invoice_id, data)
 
 
@@ -273,8 +288,9 @@ async def register_payment(
     data: PaymentCreate,
     db: DbSession,
     _: CurrentUser,
+    tenant_id: CurrentTenantId,
 ):
-    svc = InvoiceService(db)
+    svc = InvoiceService(db, tenant_id)
     return await svc.register_payment(invoice_id, data)
 
 
@@ -286,6 +302,7 @@ async def delete_payment(
     payment_id: uuid.UUID,
     db: DbSession,
     _: CurrentUser,
+    tenant_id: CurrentTenantId,
 ):
-    svc = InvoiceService(db)
+    svc = InvoiceService(db, tenant_id)
     return await svc.delete_payment(invoice_id, payment_id)

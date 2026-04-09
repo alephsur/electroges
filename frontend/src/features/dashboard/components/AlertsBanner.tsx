@@ -43,7 +43,7 @@ export function AlertsBanner({
       count: overdueInvoicesCount,
       variant: 'invoice',
     },
-  ].filter((p) => p.count > 0)
+  ].filter((p) => p.count > 0) as AlertPill[]
 
   if (pills.length === 0) return null
 

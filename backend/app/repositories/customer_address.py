@@ -8,8 +8,8 @@ from app.repositories.base import BaseRepository
 
 
 class CustomerAddressRepository(BaseRepository[CustomerAddress]):
-    def __init__(self, session: AsyncSession):
-        super().__init__(CustomerAddress, session)
+    def __init__(self, session: AsyncSession, tenant_id: uuid.UUID | None = None):
+        super().__init__(CustomerAddress, session, tenant_id)
 
     async def get_by_customer(self, customer_id: uuid.UUID) -> list[CustomerAddress]:
         result = await self.session.execute(

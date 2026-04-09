@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect } from 'react'
 import { X, Search, User } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { apiClient } from '@/lib/api-client'
 import type { CustomerListResponse, CustomerSummary } from '@/features/customers/types'
 import { useCreateBudget } from '../hooks/use-budgets'
-import { useBudgetStore } from '../store/budget-store'
 
 interface BudgetFormProps {
   customerId?: string
@@ -14,7 +14,7 @@ interface BudgetFormProps {
 
 export function BudgetForm({ customerId, customerName, onClose }: BudgetFormProps) {
   const createBudget = useCreateBudget()
-  const { setSelectedBudgetId } = useBudgetStore()
+  const navigate = useNavigate()
 
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerSummary | null>(null)
   const [searchQuery, setSearchQuery] = useState(customerName ?? '')
@@ -64,7 +64,7 @@ export function BudgetForm({ customerId, customerName, onClose }: BudgetFormProp
       },
       {
         onSuccess: (data) => {
-          setSelectedBudgetId(data.id)
+          navigate(`/presupuestos/${data.id}`)
           onClose()
         },
       },

@@ -1,4 +1,5 @@
 import { AlertTriangle, Pencil, SlidersHorizontal, PowerOff } from 'lucide-react'
+import { useNavigate, useMatch } from 'react-router-dom'
 import { useInventoryStore } from '../store/inventory-store'
 import { useDeactivateInventoryItem } from '../hooks/use-inventory-items'
 import { cn } from '@/shared/utils/cn'
@@ -11,16 +12,17 @@ interface InventoryListProps {
 }
 
 export function InventoryList({ items, total, isLoading }: InventoryListProps) {
-  const selectedItemId = useInventoryStore((s) => s.selectedItemId)
-  const setSelectedItemId = useInventoryStore((s) => s.setSelectedItemId)
-  const setActiveTab = useInventoryStore((s) => s.setActiveTab)
+  const navigate = useNavigate()
+  const match = useMatch('/inventario/:itemId')
+  const selectedItemId = match?.params.itemId ?? null
+  const { setActiveTab } = useInventoryStore()
   const deactivate = useDeactivateInventoryItem()
 
   const handleDeactivate = async (e: React.MouseEvent, item: InventoryItem) => {
     e.stopPropagation()
     if (!confirm(`¿Desactivar "${item.name}"?`)) return
     await deactivate.mutateAsync(item.id)
-    if (selectedItemId === item.id) setSelectedItemId(null)
+    if (selectedItemId === item.id) navigate('/inventario')
   }
 
   if (isLoading) {
@@ -44,35 +46,37 @@ export function InventoryList({ items, total, isLoading }: InventoryListProps) {
       <div className="px-4 py-2 border-b border-gray-100 text-xs text-gray-400">
         {total} material{total !== 1 ? 'es' : ''}
       </div>
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-gray-100 text-left text-xs font-medium text-gray-400 uppercase tracking-wide">
-            <th className="px-4 py-3">Material</th>
-            <th className="px-4 py-3">Unidad</th>
-            <th className="px-4 py-3">Proveedor preferido</th>
-            <th className="px-4 py-3 text-right">P. coste medio</th>
-            <th className="px-4 py-3 text-right">Stock dispon.</th>
-            <th className="px-4 py-3 text-right">Stock mín.</th>
-            <th className="px-4 py-3 text-right">Acciones</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-50">
-          {items.map((item) => (
-            <InventoryRow
-              key={item.id}
-              item={item}
-              isSelected={selectedItemId === item.id}
-              onSelect={() => setSelectedItemId(item.id)}
-              onAdjustStock={(e) => {
-                e.stopPropagation()
-                setSelectedItemId(item.id)
-                setActiveTab('stock')
-              }}
-              onDeactivate={handleDeactivate}
-            />
-          ))}
-        </tbody>
-      </table>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-gray-100 text-left text-xs font-medium text-gray-400 uppercase tracking-wide">
+              <th className="px-4 py-3">Material</th>
+              <th className="px-4 py-3">Unidad</th>
+              <th className="hidden lg:table-cell px-4 py-3">Proveedor preferido</th>
+              <th className="hidden md:table-cell px-4 py-3 text-right">P. coste medio</th>
+              <th className="px-4 py-3 text-right">Stock dispon.</th>
+              <th className="hidden md:table-cell px-4 py-3 text-right">Stock mín.</th>
+              <th className="px-4 py-3 text-right">Acciones</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50">
+            {items.map((item) => (
+              <InventoryRow
+                key={item.id}
+                item={item}
+                isSelected={selectedItemId === item.id}
+                onSelect={() => navigate(`/inventario/${item.id}`)}
+                onAdjustStock={(e) => {
+                  e.stopPropagation()
+                  setActiveTab('stock')
+                  navigate(`/inventario/${item.id}`)
+                }}
+                onDeactivate={handleDeactivate}
+              />
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }
@@ -116,7 +120,7 @@ function InventoryRow({
         )}
       </td>
       <td className="px-4 py-3 text-gray-500">{item.unit}</td>
-      <td className="px-4 py-3">
+      <td className="hidden lg:table-cell px-4 py-3">
         {item.preferred_supplier ? (
           <div className="flex items-center gap-1.5">
             <span className="inline-block px-2 py-0.5 bg-brand-50 text-brand-700 text-xs rounded-full font-medium">
@@ -130,7 +134,7 @@ function InventoryRow({
           <span className="text-xs text-gray-300">Sin proveedor</span>
         )}
       </td>
-      <td className="px-4 py-3 text-right text-gray-700 font-mono text-xs">
+      <td className="hidden md:table-cell px-4 py-3 text-right text-gray-700 font-mono text-xs">
         {Number(item.unit_cost_avg).toLocaleString('es-ES', {
           style: 'currency',
           currency: 'EUR',
@@ -155,16 +159,13 @@ function InventoryRow({
           )}
         </div>
       </td>
-      <td className="px-4 py-3 text-right text-xs text-gray-500 tabular-nums">
+      <td className="hidden md:table-cell px-4 py-3 text-right text-xs text-gray-500 tabular-nums">
         {stockMin.toLocaleString('es-ES', { maximumFractionDigits: 3 })}
       </td>
       <td className="px-4 py-3 text-right">
         <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
           <button
-            onClick={(e) => {
-              e.stopPropagation()
-              onSelect()
-            }}
+            onClick={(e) => { e.stopPropagation(); onSelect() }}
             className="p-1 text-gray-400 hover:text-brand-600"
             title="Editar"
           >

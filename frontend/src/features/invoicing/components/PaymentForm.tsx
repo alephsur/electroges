@@ -30,7 +30,7 @@ export function PaymentForm({
   const [date, setDate] = useState(today())
   const [method, setMethod] = useState<PaymentMethod>('transfer')
   const [reference, setReference] = useState('')
-  const [notes, setNotes] = useState('')
+  const [notes] = useState('')
 
   const { mutate, isPending, error } = useRegisterPayment(invoiceId)
 

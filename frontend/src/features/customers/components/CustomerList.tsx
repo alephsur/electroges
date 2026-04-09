@@ -1,5 +1,5 @@
-import { Eye, Pencil, UserX } from 'lucide-react'
-import { useCustomerStore } from '../store/customer-store'
+import { Eye, UserX } from 'lucide-react'
+import { useNavigate, useMatch } from 'react-router-dom'
 import { useDeactivateCustomer } from '../hooks/use-customers'
 import { CustomerTypeBadge } from './CustomerTypeBadge'
 import type { CustomerSummary } from '../types'
@@ -11,7 +11,9 @@ interface CustomerListProps {
 }
 
 export function CustomerList({ customers, total, isLoading }: CustomerListProps) {
-  const { selectedCustomerId, setSelectedCustomerId } = useCustomerStore()
+  const navigate = useNavigate()
+  const match = useMatch('/clientes/:customerId')
+  const selectedCustomerId = match?.params.customerId ?? null
   const deactivate = useDeactivateCustomer()
 
   if (isLoading) {
@@ -41,7 +43,7 @@ export function CustomerList({ customers, total, isLoading }: CustomerListProps)
           return (
             <div
               key={customer.id}
-              onClick={() => setSelectedCustomerId(customer.id)}
+              onClick={() => navigate(`/clientes/${customer.id}`)}
               className={`flex items-center gap-4 px-4 py-3 cursor-pointer transition-colors ${
                 isSelected ? 'bg-brand-50' : 'hover:bg-gray-50'
               }`}
@@ -125,7 +127,7 @@ export function CustomerList({ customers, total, isLoading }: CustomerListProps)
                 onClick={(e) => e.stopPropagation()}
               >
                 <button
-                  onClick={() => setSelectedCustomerId(customer.id)}
+                  onClick={() => navigate(`/clientes/${customer.id}`)}
                   title="Ver detalle"
                   className="p-1.5 text-gray-400 hover:text-brand-600 transition-colors"
                 >

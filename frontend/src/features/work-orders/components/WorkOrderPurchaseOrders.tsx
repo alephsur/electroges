@@ -4,7 +4,7 @@ import { getApiErrorMessage } from '@/shared/hooks/use-api-error'
 import { useReceivePurchaseOrderFromWorkOrder, useUnlinkPurchaseOrder } from '../hooks/use-work-order-purchase-orders'
 import { NewPurchaseOrderModal } from './NewPurchaseOrderModal'
 import { LinkExistingPOModal } from './LinkExistingPOModal'
-import type { LinkedPOLine, LinkedPurchaseOrder, WorkOrder } from '../types'
+import type { LinkedPurchaseOrder, WorkOrder } from '../types'
 
 function fmt(n: number | string) {
   return Number(n).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })

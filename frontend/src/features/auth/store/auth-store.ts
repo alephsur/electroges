@@ -2,57 +2,58 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { apiClient } from "@/lib/api-client";
 
+export type UserRole = "superadmin" | "admin" | "user";
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  full_name: string;
+  role: UserRole;
+  tenant_id: string | null;
+}
+
 interface AuthState {
-  accessToken: string | null;
-  refreshToken: string | null;
-  user: { id: string; email: string; full_name: string } | null;
+  user: AuthUser | null;
   isAuthenticated: boolean;
 
   login: (email: string, password: string) => Promise<void>;
-  refreshTokens: () => Promise<void>;
-  logout: () => void;
+  refreshSession: () => Promise<void>;
+  logout: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set, get) => ({
-      accessToken: null,
-      refreshToken: null,
+    (set) => ({
       user: null,
       isAuthenticated: false,
 
       login: async (email, password) => {
-        const { data } = await apiClient.post("/api/v1/auth/token", { email, password });
-        set({
-          accessToken: data.access_token,
-          refreshToken: data.refresh_token,
-          isAuthenticated: true,
-        });
-        // Fetch user info
-        const { data: user } = await apiClient.get("/api/v1/auth/me", {
-          headers: { Authorization: `Bearer ${data.access_token}` },
-        });
-        set({ user });
+        // Backend sets HttpOnly cookies; the response body contains user info.
+        const { data: user } = await apiClient.post("/api/v1/auth/token", { email, password });
+        set({ user, isAuthenticated: true });
       },
 
-      refreshTokens: async () => {
-        const { refreshToken } = get();
-        if (!refreshToken) throw new Error("No refresh token");
-        const { data } = await apiClient.post("/api/v1/auth/refresh", {
-          refresh_token: refreshToken,
-        });
-        set({ accessToken: data.access_token, refreshToken: data.refresh_token });
+      refreshSession: async () => {
+        // Refresh cookie is sent automatically by the browser.
+        // Backend rotates both cookies and returns updated user info.
+        const { data: user } = await apiClient.post("/api/v1/auth/refresh");
+        set({ user, isAuthenticated: true });
       },
 
-      logout: () => {
-        set({ accessToken: null, refreshToken: null, user: null, isAuthenticated: false });
+      logout: async () => {
+        // Ask the backend to clear the HttpOnly cookies.
+        try {
+          await apiClient.post("/api/v1/auth/logout");
+        } finally {
+          set({ user: null, isAuthenticated: false });
+        }
       },
     }),
     {
       name: "electroges-auth",
+      // Only persist non-sensitive UI state. Tokens live exclusively in HttpOnly
+      // cookies managed by the browser — never in localStorage.
       partialize: (state) => ({
-        accessToken: state.accessToken,
-        refreshToken: state.refreshToken,
         user: state.user,
         isAuthenticated: state.isAuthenticated,
       }),

@@ -1,6 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { Routes, Route, useMatch, useParams } from 'react-router-dom'
 import { FileText, Plus, Search } from 'lucide-react'
-import { useBudgetStore } from '../store/budget-store'
+import { cn } from '@/shared/utils/cn'
+import { useBudgetStore, PAGE_SIZE_OPTIONS } from '../store/budget-store'
+import type { PageSize } from '../store/budget-store'
 import { useBudget, useBudgets } from '../hooks/use-budgets'
 import { BudgetList } from './BudgetList'
 import { BudgetDetail } from './BudgetDetail'
@@ -18,37 +21,66 @@ const STATUS_OPTIONS: { value: BudgetStatus; label: string }[] = [
 
 type NewBudgetMode = 'direct' | 'from-visit' | null
 
+function BudgetDetailRoute() {
+  const { budgetId } = useParams<{ budgetId: string }>()
+  const { data: budget } = useBudget(budgetId ?? null)
+  const { setActiveTab, setShowAddLineForm } = useBudgetStore()
+
+  useEffect(() => {
+    setActiveTab('lineas')
+    setShowAddLineForm(false)
+  }, [budgetId])
+
+  if (!budget) {
+    return (
+      <div className="flex h-full items-center justify-center text-sm text-gray-400">
+        Cargando...
+      </div>
+    )
+  }
+
+  return <BudgetDetail budget={budget} />
+}
+
 export function BudgetsPage() {
   const [newBudgetMode, setNewBudgetMode] = useState<NewBudgetMode>(null)
   const [showModeSelector, setShowModeSelector] = useState(false)
   const {
     searchQuery,
     statusFilter,
-    selectedBudgetId,
     showAllVersions,
+    page,
+    pageSize,
     setSearchQuery,
     setStatusFilter,
     setShowAllVersions,
+    setPage,
+    setPageSize,
   } = useBudgetStore()
 
   const { data, isLoading } = useBudgets({
     q: searchQuery || undefined,
     status: statusFilter ?? undefined,
     latest_only: !showAllVersions,
-    limit: 200,
+    skip: (page - 1) * pageSize,
+    limit: pageSize,
   })
 
-  const { data: selectedBudget } = useBudget(selectedBudgetId)
-
   const budgets = data?.items ?? []
+  const totalPages = data ? Math.ceil(data.total / pageSize) : 1
+  const detailMatch = useMatch('/presupuestos/:budgetId')
+  const isDetailSelected = !!detailMatch
 
   return (
     <div className="flex h-full overflow-hidden">
-      {/* Left panel */}
+      {/* Left panel — list */}
       <div
-        className={`flex flex-col border-r border-gray-100 ${
-          selectedBudgetId ? 'w-[45%]' : 'flex-1'
-        } min-w-0`}
+        className={cn(
+          'flex flex-col border-r border-gray-100 min-w-0',
+          isDetailSelected
+            ? 'hidden lg:flex lg:w-[42%] lg:shrink-0'
+            : 'flex flex-1',
+        )}
       >
         {/* Header */}
         <div className="shrink-0 border-b border-gray-100 p-4">
@@ -66,7 +98,8 @@ export function BudgetsPage() {
                 className="flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
               >
                 <Plus size={15} />
-                Nuevo presupuesto
+                <span className="hidden sm:inline">Nuevo presupuesto</span>
+                <span className="sm:hidden">Nuevo</span>
               </button>
               {showModeSelector && (
                 <div className="absolute right-0 top-full mt-1 z-10 w-52 rounded-lg border border-gray-100 bg-white shadow-lg py-1">
@@ -153,20 +186,70 @@ export function BudgetsPage() {
         <div className="flex-1 overflow-y-auto">
           <BudgetList budgets={budgets} isLoading={isLoading} />
         </div>
+
+        {/* Pagination */}
+        {!isLoading && data && data.total > 0 && (
+          <div className="shrink-0 border-t border-gray-100 px-4 py-2 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 text-xs text-gray-500">
+              <span>Por página:</span>
+              {PAGE_SIZE_OPTIONS.map((size) => (
+                <button
+                  key={size}
+                  onClick={() => setPageSize(size as PageSize)}
+                  className={`rounded px-2 py-0.5 font-medium transition-colors ${
+                    pageSize === size
+                      ? 'bg-gray-900 text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {size}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2 text-xs text-gray-500">
+              <span>
+                {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, data.total)} de {data.total}
+              </span>
+              <div className="flex gap-1">
+                <button
+                  onClick={() => setPage(page - 1)}
+                  disabled={page <= 1}
+                  className="rounded px-2 py-0.5 bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed font-medium"
+                >
+                  ‹
+                </button>
+                <button
+                  onClick={() => setPage(page + 1)}
+                  disabled={page >= totalPages}
+                  className="rounded px-2 py-0.5 bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed font-medium"
+                >
+                  ›
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Right panel: detail */}
-      {selectedBudgetId && (
-        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-          {selectedBudget ? (
-            <BudgetDetail budget={selectedBudget} />
-          ) : (
-            <div className="flex h-full items-center justify-center text-sm text-gray-400">
-              Cargando...
-            </div>
-          )}
-        </div>
-      )}
+      {/* Right panel — detail via nested routes */}
+      <div
+        className={cn(
+          'flex-1 flex flex-col overflow-hidden min-w-0',
+          !isDetailSelected && 'hidden lg:flex',
+        )}
+      >
+        <Routes>
+          <Route
+            index
+            element={
+              <div className="flex h-full items-center justify-center text-sm text-gray-400">
+                Selecciona un presupuesto para ver el detalle
+              </div>
+            }
+          />
+          <Route path=":budgetId" element={<BudgetDetailRoute />} />
+        </Routes>
+      </div>
 
       {/* Modals */}
       {newBudgetMode === 'direct' && (

@@ -52,17 +52,18 @@ logger = logging.getLogger(__name__)
 
 
 class InvoiceService:
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: AsyncSession, tenant_id: uuid.UUID):
         self._session = session
-        self._repo = InvoiceRepository(session)
-        self._line_repo = InvoiceLineRepository(session)
-        self._payment_repo = PaymentRepository(session)
-        self._company_repo = CompanySettingsRepository(session)
-        self._customer_repo = CustomerRepository(session)
-        self._work_order_repo = WorkOrderRepository(session)
-        self._cert_repo = CertificationRepository(session)
-        self._task_repo = TaskRepository(session)
-        self._budget_line_repo = BudgetLineRepository(session)
+        self._tenant_id = tenant_id
+        self._repo = InvoiceRepository(session, tenant_id)
+        self._line_repo = InvoiceLineRepository(session, tenant_id)
+        self._payment_repo = PaymentRepository(session, tenant_id)
+        self._company_repo = CompanySettingsRepository(session, tenant_id)
+        self._customer_repo = CustomerRepository(session, tenant_id)
+        self._work_order_repo = WorkOrderRepository(session, tenant_id)
+        self._cert_repo = CertificationRepository(session, tenant_id)
+        self._task_repo = TaskRepository(session, tenant_id)
+        self._budget_line_repo = BudgetLineRepository(session, tenant_id)
 
     # ── Create ────────────────────────────────────────────────────────────────
 
@@ -92,6 +93,7 @@ class InvoiceService:
             discount_pct=data.discount_pct,
             notes=data.notes,
             client_notes=data.client_notes,
+            tenant_id=self._tenant_id,
         )
         invoice = await self._repo.create(invoice)
 
@@ -134,6 +136,7 @@ class InvoiceService:
             discount_pct=data.discount_pct,
             notes=data.notes,
             client_notes=data.client_notes,
+            tenant_id=self._tenant_id,
         )
         invoice = await self._repo.create(invoice)
         sort_order = 0
@@ -375,6 +378,7 @@ class InvoiceService:
                 f"Motivo: {data.reason}"
             ),
             client_notes=data.notes,
+            tenant_id=self._tenant_id,
         )
         rect = await self._repo.create(rect)
 

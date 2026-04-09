@@ -4,6 +4,46 @@ from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader
 
+from app.core.config import settings
+
+
+def _resolve_company_identity(company) -> tuple[str, str | None]:
+    """
+    Returns (effective_name, effective_logo_abs_path) for PDF rendering.
+
+    Priority:
+    - Name: tenant.name is always the source of truth. company_name from
+      CompanySettings is used as an override only when it is explicitly set
+      AND different from tenant.name (to avoid stale migration defaults).
+    - Logo: company.logo_path if set, else derive absolute path from tenant.logo_url
+    """
+    tenant_name = (company.tenant.name or "").strip() if company.tenant else ""
+    company_name = (company.company_name or "").strip()
+
+    # Use company_name only if explicitly set and different from the tenant name
+    # (guards against migration artifacts like "Default Tenant")
+    if company_name and company_name != tenant_name:
+        name = company_name
+    else:
+        name = tenant_name
+
+    logo_abs_path: str | None = None
+    if company.logo_path:
+        logo_abs_path = str(Path(company.logo_path).resolve())
+    elif company.tenant and company.tenant.logo_url:
+        # tenant.logo_url is a web path like /uploads/logos/{id}/logo.png
+        # Strip the leading /uploads prefix and resolve against UPLOAD_DIR
+        rel = company.tenant.logo_url.lstrip("/")
+        # rel is now "uploads/logos/..."
+        candidate = Path(settings.UPLOAD_DIR).parent / rel
+        if not candidate.exists():
+            # Try relative to current working directory
+            candidate = Path(rel)
+        if candidate.exists():
+            logo_abs_path = str(candidate.resolve())
+
+    return name, logo_abs_path
+
 
 def _currency_filter(value) -> str:
     """Format a numeric value as euros: 1.234,56 €"""
@@ -43,15 +83,12 @@ def render_delivery_note_pdf_html(note, work_order, company, customer, totals: d
     """Renders the delivery note PDF HTML using the Jinja2 template."""
     env = _get_jinja_env()
     template = env.get_template("delivery_note_pdf.html")
-
-    logo_abs_path = None
-    if company.logo_path:
-        logo_abs_path = str(Path(company.logo_path).resolve())
-
+    effective_name, logo_abs_path = _resolve_company_identity(company)
     return template.render(
         note=note,
         work_order=work_order,
         company=company,
+        effective_company_name=effective_name,
         customer=customer,
         totals=totals,
         logo_abs_path=logo_abs_path,
@@ -62,15 +99,12 @@ def render_certification_pdf_html(cert, work_order, company, customer, total_amo
     """Renders the certification PDF HTML using the Jinja2 template."""
     env = _get_jinja_env()
     template = env.get_template("certification_pdf.html")
-
-    logo_abs_path = None
-    if company.logo_path:
-        logo_abs_path = str(Path(company.logo_path).resolve())
-
+    effective_name, logo_abs_path = _resolve_company_identity(company)
     return template.render(
         cert=cert,
         work_order=work_order,
         company=company,
+        effective_company_name=effective_name,
         customer=customer,
         total_amount=total_amount,
         logo_abs_path=logo_abs_path,
@@ -86,18 +120,16 @@ def render_invoice_pdf_html(invoice, company, totals) -> str:
     """
     env = _get_jinja_env()
     template = env.get_template("invoice_pdf.html")
+    effective_name, logo_abs_path = _resolve_company_identity(company)
 
     has_line_discounts = any(
         float(line.line_discount_pct) > 0 for line in (invoice.lines or [])
     )
 
-    logo_abs_path = None
-    if company.logo_path:
-        logo_abs_path = str(Path(company.logo_path).resolve())
-
     return template.render(
         invoice=invoice,
         company=company,
+        effective_company_name=effective_name,
         customer=invoice.customer,
         totals=totals,
         lines=invoice.lines or [],
@@ -115,17 +147,14 @@ def render_budget_pdf_html(budget, company, totals, customer, address, lines) ->
     """
     env = _get_jinja_env()
     template = env.get_template("budget_pdf.html")
+    effective_name, logo_abs_path = _resolve_company_identity(company)
 
     has_line_discounts = any(float(line.line_discount_pct) > 0 for line in lines)
-
-    # Build absolute path for logo so WeasyPrint can find it
-    logo_abs_path = None
-    if company.logo_path:
-        logo_abs_path = str(Path(company.logo_path).resolve())
 
     return template.render(
         budget=budget,
         company=company,
+        effective_company_name=effective_name,
         totals=totals,
         customer=customer,
         address=address,

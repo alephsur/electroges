@@ -1,8 +1,7 @@
-import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, MapPin, ExternalLink } from 'lucide-react'
 import { getApiErrorMessage } from '@/shared/hooks/use-api-error'
-import { useBudgetStore } from '@/features/budgets/store/budget-store'
+import { useWorkOrderStore } from '../store/work-order-store'
 import { useUpdateWorkOrderStatus } from '../hooks/use-work-orders'
 import { WorkOrderStatusBadge } from './WorkOrderStatusBadge'
 import { WorkOrderKPIPanel } from './WorkOrderKPIPanel'
@@ -56,25 +55,16 @@ const VARIANT_CLASSES: Record<string, string> = {
 
 interface WorkOrderDetailProps {
   workOrder: WorkOrder
-  onBack: () => void
-  activeTab: Tab
-  setActiveTab: (tab: Tab) => void
 }
 
-export function WorkOrderDetail({
-  workOrder,
-  onBack,
-  activeTab,
-  setActiveTab,
-}: WorkOrderDetailProps) {
+export function WorkOrderDetail({ workOrder }: WorkOrderDetailProps) {
   const navigate = useNavigate()
-  const setSelectedBudgetId = useBudgetStore((s) => s.setSelectedBudgetId)
+  const { activeTab, setActiveTab } = useWorkOrderStore()
   const updateStatus = useUpdateWorkOrderStatus()
 
   const handleOpenBudget = () => {
     if (!workOrder.origin_budget_id) return
-    setSelectedBudgetId(workOrder.origin_budget_id)
-    navigate('/presupuestos')
+    navigate(`/presupuestos/${workOrder.origin_budget_id}`)
   }
 
   const buttons = STATUS_BUTTONS[workOrder.status as WorkOrderStatus] ?? []
@@ -95,7 +85,7 @@ export function WorkOrderDetail({
       {/* Header */}
       <div className="rounded-xl border border-gray-100 bg-white p-5">
         <button
-          onClick={onBack}
+          onClick={() => navigate('/obras')}
           className="mb-3 flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
         >
           <ArrowLeft size={14} />

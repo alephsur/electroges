@@ -1,8 +1,9 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Clock, FileText, Image, MapPin, Package, User } from 'lucide-react'
+import { ArrowLeft, Clock, FileText, Image, MapPin, Package, User } from 'lucide-react'
 import type { SiteVisit } from '../types'
 import { useSiteVisitStore } from '../store/site-visit-store'
 import { useUpdateSiteVisit, useUpdateSiteVisitStatus } from '../hooks/use-site-visits'
@@ -29,6 +30,7 @@ interface SiteVisitDetailProps {
 }
 
 export function SiteVisitDetail({ visit }: SiteVisitDetailProps) {
+  const navigate = useNavigate()
   const { activeTab, setActiveTab } = useSiteVisitStore()
   const [showLinkModal, setShowLinkModal] = useState(false)
   const [showBudgetForm, setShowBudgetForm] = useState(false)
@@ -78,6 +80,15 @@ export function SiteVisitDetail({ visit }: SiteVisitDetailProps) {
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
+      {/* Mobile back button */}
+      <button
+        onClick={() => navigate('/visitas')}
+        className="flex items-center gap-1.5 px-4 pt-3 pb-1 text-sm text-gray-500 hover:text-gray-700 lg:hidden"
+      >
+        <ArrowLeft size={14} />
+        Visitas
+      </button>
+
       {/* Header */}
       <div className="shrink-0 border-b border-gray-100 p-4 space-y-3">
         <div className="flex items-start justify-between gap-3">

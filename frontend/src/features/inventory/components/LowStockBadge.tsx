@@ -1,6 +1,5 @@
 import { AlertTriangle } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { useInventoryStore } from '../store/inventory-store'
 import type { InventoryItem } from '../types'
 
 interface LowStockBadgeProps {
@@ -10,14 +9,12 @@ interface LowStockBadgeProps {
 
 export function LowStockBadge({ items, maxItems = 5 }: LowStockBadgeProps) {
   const navigate = useNavigate()
-  const setSelectedItemId = useInventoryStore((s) => s.setSelectedItemId)
   const visible = items.slice(0, maxItems)
 
   if (items.length === 0) return null
 
   const handleItemClick = (id: string) => {
-    setSelectedItemId(id)
-    navigate('/inventario')
+    navigate(`/inventario/${id}`)
   }
 
   return (

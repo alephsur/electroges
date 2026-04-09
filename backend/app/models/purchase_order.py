@@ -5,7 +5,7 @@ from datetime import date
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Date, ForeignKey, Numeric, String, Text
+from sqlalchemy import Date, ForeignKey, Numeric, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -20,11 +20,20 @@ if TYPE_CHECKING:
 
 class PurchaseOrder(UUIDMixin, TimestampMixin, Base):
     __tablename__ = "purchase_orders"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "order_number", name="uq_purchase_orders_tenant_number"),
+    )
 
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     supplier_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("suppliers.id"), nullable=False
     )
-    order_number: Mapped[str] = mapped_column(String(20), nullable=False, unique=True)
+    order_number: Mapped[str] = mapped_column(String(20), nullable=False)
     # status values: pending | received | cancelled
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, default="pending", server_default="pending"

@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useInventoryStore } from "@/features/inventory/store/inventory-store";
 import {
   ArrowLeft,
   Mail,
@@ -93,7 +92,7 @@ export function SupplierDetail({ supplierId }: SupplierDetailProps) {
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate("/proveedores")}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-gray-400 hover:text-gray-600 transition-colors lg:hidden"
           >
             <ArrowLeft size={18} />
           </button>
@@ -248,11 +247,9 @@ function MaterialesTab({
   const { data, isLoading } = useInventoryItems({ supplier_id: supplierId, limit: 200 });
   const items = data?.items ?? [];
   const navigate = useNavigate();
-  const setSelectedItemId = useInventoryStore((s) => s.setSelectedItemId);
 
   const handleItemDetail = (itemId: string) => {
-    setSelectedItemId(itemId);
-    navigate("/inventario");
+    navigate(`/inventario/${itemId}`);
   };
 
   return (
@@ -382,79 +379,69 @@ function PedidosTab({
           Este proveedor no tiene pedidos
         </div>
       ) : (
-        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-100 text-left text-xs font-medium text-gray-400 uppercase tracking-wide">
-                <th className="px-4 py-3">Número</th>
-                <th className="px-4 py-3">Estado</th>
-                <th className="px-4 py-3">Fecha pedido</th>
-                <th className="px-4 py-3">Entrega prevista</th>
-                <th className="px-4 py-3 text-right">Total</th>
-                <th className="px-4 py-3">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {orders.map((order) => {
-                const cfg = STATUS_CONFIG[order.status] ?? STATUS_CONFIG.pending;
-                const StatusIcon = cfg.icon;
-                return (
-                  <tr key={order.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3">
-                      <button
-                        onClick={() => setSelectedOrderId(order.id)}
-                        className="font-mono font-medium text-brand-700 hover:text-brand-900 hover:underline"
-                      >
-                        {order.order_number}
-                      </button>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={cn(
-                          "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium",
-                          cfg.className
-                        )}
-                      >
-                        <StatusIcon size={11} />
-                        {cfg.label}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-gray-500">{formatDate(order.order_date)}</td>
-                    <td className="px-4 py-3 text-gray-500">
-                      {order.expected_date ? formatDate(order.expected_date) : "—"}
-                    </td>
-                    <td className="px-4 py-3 text-right font-medium text-gray-800">
-                      {Number(order.total).toLocaleString("es-ES", {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}{" "}
-                      €
-                    </td>
-                    <td className="px-4 py-3">
-                      {order.status === "pending" && (
-                        <div className="flex items-center gap-2">
-                          <ActionButton
-                            onClick={() => receiveMutation.mutate(order.id)}
-                            disabled={receiveMutation.isPending}
-                            variant="success"
-                          >
-                            Recibir
-                          </ActionButton>
-                          <ActionButton
-                            onClick={() => cancelMutation.mutate(order.id)}
-                            disabled={cancelMutation.isPending}
-                            variant="danger"
-                          >
-                            Cancelar
-                          </ActionButton>
-                        </div>
+        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden divide-y divide-gray-50">
+          {orders.map((order) => {
+            const cfg = STATUS_CONFIG[order.status] ?? STATUS_CONFIG.pending;
+            const StatusIcon = cfg.icon;
+            return (
+              <div key={order.id} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50">
+                {/* Number + date */}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      onClick={() => setSelectedOrderId(order.id)}
+                      className="font-mono text-sm font-medium text-brand-700 hover:text-brand-900 hover:underline whitespace-nowrap"
+                    >
+                      {order.order_number}
+                    </button>
+                    <span
+                      className={cn(
+                        "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap",
+                        cfg.className
                       )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                    >
+                      <StatusIcon size={10} />
+                      {cfg.label}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 mt-0.5 text-xs text-gray-400 flex-wrap">
+                    <span>Pedido: {formatDate(order.order_date)}</span>
+                    {order.expected_date && (
+                      <span>Entrega: {formatDate(order.expected_date)}</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Total */}
+                <div className="shrink-0 text-sm font-semibold text-gray-800 whitespace-nowrap">
+                  {Number(order.total).toLocaleString("es-ES", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}{" "}€
+                </div>
+
+                {/* Actions */}
+                {order.status === "pending" && (
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <ActionButton
+                      onClick={() => receiveMutation.mutate(order.id)}
+                      disabled={receiveMutation.isPending}
+                      variant="success"
+                    >
+                      Recibir
+                    </ActionButton>
+                    <ActionButton
+                      onClick={() => cancelMutation.mutate(order.id)}
+                      disabled={cancelMutation.isPending}
+                      variant="danger"
+                    >
+                      Cancelar
+                    </ActionButton>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -506,7 +493,7 @@ function ResumenTab({
 
 function PageShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex flex-col bg-white border border-gray-200 rounded-xl overflow-hidden">
+    <div className="flex flex-col bg-white border border-gray-200 rounded-xl overflow-hidden h-full">
       {children}
     </div>
   );

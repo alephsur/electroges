@@ -1,3 +1,5 @@
+import secrets
+import string
 from datetime import UTC, datetime, timedelta
 
 from jose import JWTError, jwt
@@ -14,6 +16,25 @@ def hash_password(password: str) -> str:
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
+
+
+def generate_secure_password(length: int = 20) -> str:
+    """Generate a cryptographically secure random password."""
+    alphabet = string.ascii_letters + string.digits + "!@#$%^&*"
+    while True:
+        password = "".join(secrets.choice(alphabet) for _ in range(length))
+        # Ensure at least one of each character class
+        has_upper = any(c.isupper() for c in password)
+        has_lower = any(c.islower() for c in password)
+        has_digit = any(c.isdigit() for c in password)
+        has_special = any(c in "!@#$%^&*" for c in password)
+        if has_upper and has_lower and has_digit and has_special:
+            return password
+
+
+def generate_invitation_token() -> str:
+    """Generate a URL-safe random token for email invitations."""
+    return secrets.token_urlsafe(32)
 
 
 def create_access_token(data: dict) -> str:

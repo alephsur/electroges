@@ -9,8 +9,8 @@ from app.repositories.base import BaseRepository
 
 
 class CustomerRepository(BaseRepository[Customer]):
-    def __init__(self, session: AsyncSession):
-        super().__init__(Customer, session)
+    def __init__(self, session: AsyncSession, tenant_id: uuid.UUID | None = None):
+        super().__init__(Customer, session, tenant_id)
 
     async def search(
         self,
@@ -20,13 +20,12 @@ class CustomerRepository(BaseRepository[Customer]):
         skip: int = 0,
         limit: int = 100,
     ) -> tuple[list[Customer], int]:
-        """
-        Search customers with filters. Returns (items, total_count).
-        query applies ilike over name, tax_id, email, contact_person.
-        Eager-loads addresses to display the primary address in the list.
-        """
         stmt = select(Customer).options(selectinload(Customer.addresses))
         count_stmt = select(func.count()).select_from(Customer)
+
+        if self.tenant_id is not None:
+            stmt = stmt.where(Customer.tenant_id == self.tenant_id)
+            count_stmt = count_stmt.where(Customer.tenant_id == self.tenant_id)
 
         if is_active is not None:
             stmt = stmt.where(Customer.is_active == is_active)
@@ -47,7 +46,7 @@ class CustomerRepository(BaseRepository[Customer]):
             stmt = stmt.where(search_filter)
             count_stmt = count_stmt.where(search_filter)
 
-        stmt = stmt.order_by(Customer.name).offset(skip).limit(limit)
+        stmt = stmt.order_by(Customer.created_at.desc()).offset(skip).limit(limit)
 
         rows = await self.session.execute(stmt)
         total = await self.session.execute(count_stmt)
@@ -55,12 +54,7 @@ class CustomerRepository(BaseRepository[Customer]):
         return list(rows.scalars().all()), total.scalar_one()
 
     async def get_with_detail(self, customer_id: uuid.UUID) -> Customer | None:
-        """
-        Eager-load addresses and documents.
-        Does NOT load site_visits or work_orders — those are loaded
-        separately in the service for the timeline.
-        """
-        result = await self.session.execute(
+        stmt = (
             select(Customer)
             .options(
                 selectinload(Customer.addresses),
@@ -68,21 +62,27 @@ class CustomerRepository(BaseRepository[Customer]):
             )
             .where(Customer.id == customer_id)
         )
+        if self.tenant_id is not None:
+            stmt = stmt.where(Customer.tenant_id == self.tenant_id)
+        result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
     async def get_by_tax_id(self, tax_id: str) -> Customer | None:
-        """Used to validate tax_id uniqueness."""
-        result = await self.session.execute(
-            select(Customer).where(Customer.tax_id == tax_id)
-        )
+        stmt = select(Customer).where(Customer.tax_id == tax_id)
+        if self.tenant_id is not None:
+            stmt = stmt.where(Customer.tenant_id == self.tenant_id)
+        result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
     async def get_default_address(self, customer_id: uuid.UUID) -> CustomerAddress | None:
-        """The address marked as is_default, or the first one if none is marked."""
-        result = await self.session.execute(
+        stmt = (
             select(CustomerAddress)
+            .join(Customer, CustomerAddress.customer_id == Customer.id)
             .where(CustomerAddress.customer_id == customer_id)
             .order_by(CustomerAddress.is_default.desc(), CustomerAddress.created_at)
             .limit(1)
         )
+        if self.tenant_id is not None:
+            stmt = stmt.where(Customer.tenant_id == self.tenant_id)
+        result = await self.session.execute(stmt)
         return result.scalar_one_or_none()

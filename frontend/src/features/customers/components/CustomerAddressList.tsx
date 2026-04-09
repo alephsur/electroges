@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { MapPin, Star, Pencil, Trash2, Plus } from 'lucide-react'
+import { Star, Pencil, Trash2, Plus } from 'lucide-react'
 import { useAddAddress, useUpdateAddress, useDeleteAddress, useSetDefaultAddress } from '../hooks/use-customers'
 import { CustomerAddressForm } from './CustomerAddressForm'
 import type { CustomerAddress } from '../types'

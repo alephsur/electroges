@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import uuid
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, String, Text
+from sqlalchemy import Boolean, ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -16,9 +18,18 @@ if TYPE_CHECKING:
 
 class Supplier(UUIDMixin, TimestampMixin, Base):
     __tablename__ = "suppliers"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "tax_id", name="uq_suppliers_tenant_tax_id"),
+    )
 
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    tax_id: Mapped[str | None] = mapped_column(String(50), nullable=True, unique=True)
+    tax_id: Mapped[str | None] = mapped_column(String(50), nullable=True)
     email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
     address: Mapped[str | None] = mapped_column(Text, nullable=True)

@@ -24,16 +24,17 @@ from app.repositories.base import BaseRepository
 
 
 class WorkOrderRepository(BaseRepository[WorkOrder]):
-    def __init__(self, session: AsyncSession):
-        super().__init__(WorkOrder, session)
+    def __init__(self, session: AsyncSession, tenant_id: uuid.UUID | None = None):
+        super().__init__(WorkOrder, session, tenant_id)
 
     async def get_next_work_order_number(self) -> str:
         year = datetime.now().year
-        result = await self.session.execute(
-            select(func.count(WorkOrder.id)).where(
-                WorkOrder.work_order_number.like(f"OBRA-{year}-%")
-            )
+        stmt = select(func.count(WorkOrder.id)).where(
+            WorkOrder.work_order_number.like(f"OBRA-{year}-%")
         )
+        if self.tenant_id is not None:
+            stmt = stmt.where(WorkOrder.tenant_id == self.tenant_id)
+        result = await self.session.execute(stmt)
         count = result.scalar() or 0
         return f"OBRA-{year}-{(count + 1):04d}"
 
@@ -55,6 +56,10 @@ class WorkOrderRepository(BaseRepository[WorkOrder]):
             selectinload(WorkOrder.certifications).selectinload(Certification.items),
         )
         count_stmt = select(func.count()).select_from(WorkOrder)
+
+        if self.tenant_id is not None:
+            stmt = stmt.where(WorkOrder.tenant_id == self.tenant_id)
+            count_stmt = count_stmt.where(WorkOrder.tenant_id == self.tenant_id)
 
         if customer_id is not None:
             stmt = stmt.where(WorkOrder.customer_id == customer_id)
@@ -97,7 +102,7 @@ class WorkOrderRepository(BaseRepository[WorkOrder]):
         from app.models.budget import Budget
         from app.models.purchase_order import PurchaseOrder, PurchaseOrderLine
 
-        result = await self.session.execute(
+        stmt = (
             select(WorkOrder)
             .options(
                 selectinload(WorkOrder.customer),
@@ -125,14 +130,18 @@ class WorkOrderRepository(BaseRepository[WorkOrder]):
             )
             .where(WorkOrder.id == work_order_id)
         )
+        stmt = self._tenant_filter(stmt)
+        result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
     async def get_by_customer(self, customer_id: uuid.UUID) -> list[WorkOrder]:
-        result = await self.session.execute(
+        stmt = (
             select(WorkOrder)
             .where(WorkOrder.customer_id == customer_id)
             .order_by(WorkOrder.created_at.desc())
         )
+        stmt = self._tenant_filter(stmt)
+        result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
     async def check_all_tasks_completed(self, work_order_id: uuid.UUID) -> bool:
@@ -169,8 +178,8 @@ class WorkOrderRepository(BaseRepository[WorkOrder]):
 
 
 class TaskRepository(BaseRepository[Task]):
-    def __init__(self, session: AsyncSession):
-        super().__init__(Task, session)
+    def __init__(self, session: AsyncSession, tenant_id: uuid.UUID | None = None):
+        super().__init__(Task, session, tenant_id)
 
     async def get_certifiable_tasks(
         self, work_order_id: uuid.UUID
@@ -200,13 +209,13 @@ class TaskRepository(BaseRepository[Task]):
 
 
 class TaskMaterialRepository(BaseRepository[TaskMaterial]):
-    def __init__(self, session: AsyncSession):
-        super().__init__(TaskMaterial, session)
+    def __init__(self, session: AsyncSession, tenant_id: uuid.UUID | None = None):
+        super().__init__(TaskMaterial, session, tenant_id)
 
 
 class CertificationRepository(BaseRepository[Certification]):
-    def __init__(self, session: AsyncSession):
-        super().__init__(Certification, session)
+    def __init__(self, session: AsyncSession, tenant_id: uuid.UUID | None = None):
+        super().__init__(Certification, session, tenant_id)
 
     async def get_next_certification_number(
         self, work_order_number: str
@@ -244,18 +253,18 @@ class CertificationRepository(BaseRepository[Certification]):
 
 
 class CertificationItemRepository(BaseRepository[CertificationItem]):
-    def __init__(self, session: AsyncSession):
-        super().__init__(CertificationItem, session)
+    def __init__(self, session: AsyncSession, tenant_id: uuid.UUID | None = None):
+        super().__init__(CertificationItem, session, tenant_id)
 
 
 class WorkOrderPurchaseOrderRepository(BaseRepository[WorkOrderPurchaseOrder]):
-    def __init__(self, session: AsyncSession):
-        super().__init__(WorkOrderPurchaseOrder, session)
+    def __init__(self, session: AsyncSession, tenant_id: uuid.UUID | None = None):
+        super().__init__(WorkOrderPurchaseOrder, session, tenant_id)
 
 
 class DeliveryNoteRepository(BaseRepository[DeliveryNote]):
-    def __init__(self, session: AsyncSession):
-        super().__init__(DeliveryNote, session)
+    def __init__(self, session: AsyncSession, tenant_id: uuid.UUID | None = None):
+        super().__init__(DeliveryNote, session, tenant_id)
 
     async def get_next_delivery_note_number(self, work_order_number: str) -> str:
         result = await self.session.execute(
@@ -297,5 +306,5 @@ class DeliveryNoteRepository(BaseRepository[DeliveryNote]):
 
 
 class DeliveryNoteItemRepository(BaseRepository[DeliveryNoteItem]):
-    def __init__(self, session: AsyncSession):
-        super().__init__(DeliveryNoteItem, session)
+    def __init__(self, session: AsyncSession, tenant_id: uuid.UUID | None = None):
+        super().__init__(DeliveryNoteItem, session, tenant_id)

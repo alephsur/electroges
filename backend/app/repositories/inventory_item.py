@@ -14,8 +14,8 @@ from app.repositories.base import BaseRepository
 
 
 class InventoryItemRepository(BaseRepository[InventoryItem]):
-    def __init__(self, session: AsyncSession):
-        super().__init__(InventoryItem, session)
+    def __init__(self, session: AsyncSession, tenant_id: uuid.UUID | None = None):
+        super().__init__(InventoryItem, session, tenant_id)
 
     async def get_by_supplier(
         self,
@@ -38,6 +38,8 @@ class InventoryItemRepository(BaseRepository[InventoryItem]):
                 linked_via_junction,
             )
         )
+        if self.tenant_id is not None:
+            query = query.where(InventoryItem.tenant_id == self.tenant_id)
         if is_active is not None:
             query = query.where(InventoryItem.is_active == is_active)
 
@@ -69,6 +71,8 @@ class InventoryItemRepository(BaseRepository[InventoryItem]):
     ) -> tuple[list[InventoryItem], int]:
         """Legacy search used internally by suppliers module."""
         query = select(InventoryItem).where(InventoryItem.name.ilike(f"%{q}%"))
+        if self.tenant_id is not None:
+            query = query.where(InventoryItem.tenant_id == self.tenant_id)
         if supplier_id is not None:
             linked_via_junction = exists().where(
                 (SupplierItem.inventory_item_id == InventoryItem.id)
@@ -115,6 +119,8 @@ class InventoryItemRepository(BaseRepository[InventoryItem]):
             select(InventoryItem)
             .where(InventoryItem.is_active == True)  # noqa: E712
         )
+        if self.tenant_id is not None:
+            base_query = base_query.where(InventoryItem.tenant_id == self.tenant_id)
 
         if query:
             base_query = base_query.where(
@@ -171,7 +177,7 @@ class InventoryItemRepository(BaseRepository[InventoryItem]):
 
     async def get_low_stock_items(self) -> list[InventoryItem]:
         """Items where available stock is at or below the minimum threshold."""
-        result = await self.session.execute(
+        stmt = (
             select(InventoryItem)
             .where(InventoryItem.is_active == True)  # noqa: E712
             .where(InventoryItem.stock_current <= InventoryItem.stock_min)
@@ -181,6 +187,9 @@ class InventoryItemRepository(BaseRepository[InventoryItem]):
             )
             .order_by(InventoryItem.name)
         )
+        if self.tenant_id is not None:
+            stmt = stmt.where(InventoryItem.tenant_id == self.tenant_id)
+        result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
     async def update_stock_and_pmp(

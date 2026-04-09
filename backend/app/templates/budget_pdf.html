@@ -90,14 +90,14 @@
 <!-- HEADER -->
 <div class="header">
   <div>
-    {% if company.logo_path %}
+    {% if logo_abs_path %}
       <img src="file://{{ logo_abs_path }}" class="company-logo" alt="Logo">
     {% else %}
-      <div class="company-name">{{ company.company_name }}</div>
+      <div class="company-name">{{ effective_company_name }}</div>
     {% endif %}
   </div>
   <div class="company-info">
-    <div class="company-name">{{ company.company_name }}</div>
+    <div class="company-name">{{ effective_company_name }}</div>
     {% if company.tax_id %}<div>CIF: {{ company.tax_id }}</div>{% endif %}
     {% if company.address %}<div>{{ company.address }}</div>{% endif %}
     {% if company.city %}<div>{{ company.postal_code }} {{ company.city }}</div>{% endif %}
@@ -208,7 +208,7 @@
 <div class="payment-block">
   <div class="payment-label">Datos para el pago</div>
   <div>IBAN: {{ company.bank_account }}</div>
-  <div>Beneficiario: {{ company.company_name }}</div>
+  <div>Beneficiario: {{ effective_company_name }}</div>
   <div style="margin-top:4pt; font-style:italic">
     Indicar el número de presupuesto como concepto: {{ budget.budget_number }}
   </div>
@@ -224,7 +224,7 @@
     <div style="margin-top:2pt">Conforme: _________________________</div>
   </div>
   <div class="signature-box" style="text-align:right">
-    <div>{{ company.company_name }}</div>
+    <div>{{ effective_company_name }}</div>
     {% if company.tax_id %}<div>CIF: {{ company.tax_id }}</div>{% endif %}
     <div style="margin-top:2pt">Firma: ____________________________</div>
   </div>
