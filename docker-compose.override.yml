@@ -1,0 +1,11 @@
+# Local development overrides — NOT for production.
+# Docker Compose merges this file automatically with docker-compose.yml.
+# Differences from the base file:
+#   - backend uses Dockerfile.dev (includes dev/test dependencies)
+#   - backend service has no depends_on so it can start standalone for tests
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev

@@ -3,7 +3,7 @@ from decimal import Decimal
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class StockMovementCreate(BaseModel):
@@ -33,8 +33,13 @@ class StockMovementResponse(BaseModel):
 
 class ManualAdjustmentRequest(BaseModel):
     # Positive = stock entry, negative = downward correction
-    quantity: Decimal = Field(
-        ne=0, description="Positive for entry, negative for correction"
-    )
+    quantity: Decimal = Field(description="Positive for entry, negative for correction")
     unit_cost: Decimal = Field(gt=0)
     notes: str = Field(min_length=5, description="Required for traceability")
+
+    @field_validator("quantity")
+    @classmethod
+    def quantity_cannot_be_zero(cls, v: Decimal) -> Decimal:
+        if v == 0:
+            raise ValueError("La cantidad no puede ser cero")
+        return v
