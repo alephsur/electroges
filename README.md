@@ -59,6 +59,24 @@ Con esas credenciales accedes a la UI de administración para crear el primer te
 
 ## Variables de entorno
 
+### Cómo funciona el enrutamiento frontend → backend
+
+El frontend necesita llegar al backend de dos formas distintas según el entorno, lo que da lugar a tres variables relacionadas:
+
+| Variable | Quién la usa | Para qué |
+|---|---|---|
+| `VITE_API_URL` | El **navegador** (bundle JS compilado) | `baseURL` de axios. En producción se compila vacía para usar rutas relativas vía nginx. En local apunta a `http://localhost:8000`. |
+| `BACKEND_INTERNAL_URL` | El **proxy de Vite** en local (proceso Node dentro del contenedor) | Dirige `/api/` y `/uploads/` al backend por la red interna de Docker (`http://backend:8000`). El navegador nunca ve esta variable. |
+| `BACKEND_URL` | **nginx** en producción | Inyectada en la config de nginx al arrancar el contenedor. Nginx redirige `/api/`, `/uploads/` y `/health` a este valor. No existe en local. |
+
+**Por qué son necesarias tres variables:**
+
+- `VITE_*` se incrustan en el bundle en tiempo de compilación — el navegador descarga ese valor. En producción se dejan vacías para que axios use rutas relativas (`/api/...`) y nginx las intercepte.
+- En local con Docker, el proxy de Vite corre dentro del contenedor frontend. `localhost:8000` apuntaría al propio contenedor, no al backend. Por eso necesita `http://backend:8000` (nombre de servicio de Docker Compose).
+- En producción, nginx (no Vite) hace el proxy. `BACKEND_URL` le dice a nginx la URL real del backend.
+
+### Variables para entorno local (archivo `.env`)
+
 ```bash
 # Base de datos
 POSTGRES_USER=electroges
@@ -72,7 +90,9 @@ SECRET_KEY=cambia_esto_en_produccion
 ENVIRONMENT=development
 ALLOWED_ORIGINS=["http://localhost:5173"]
 
-# Frontend
+# Frontend — URL del backend vista desde el navegador
+# El proxy de Vite intercepta /api/ y /uploads/ y los redirige internamente,
+# por lo que este valor solo se usa si el frontend se ejecuta fuera de Docker.
 VITE_API_URL=http://localhost:8000
 
 # Email — SMTP (opcional)
@@ -83,6 +103,41 @@ SMTP_USER=tu_cuenta@gmail.com
 SMTP_PASSWORD=tu_app_password
 SMTP_FROM_EMAIL=ElectroGes <tu_cuenta@gmail.com>
 SMTP_USE_TLS=true
+```
+
+> `BACKEND_INTERNAL_URL` no va en `.env` — está hardcodeada en `docker-compose.yml` como `http://backend:8000` (red interna de Docker).
+
+### Variables para producción (cualquier cloud)
+
+Configurar en el panel de la plataforma — **no en `.env`**:
+
+```bash
+# Base de datos
+DATABASE_URL=postgresql+asyncpg://user:password@host:5432/dbname
+
+# Seguridad
+SECRET_KEY=clave_aleatoria_larga_y_segura
+
+# Entorno
+ENVIRONMENT=production
+ALLOWED_ORIGINS=["https://tu-dominio.com"]
+
+# Frontend: URL interna del backend (usada por nginx)
+# El bundle JS se compila con VITE_API_URL="" para usar rutas relativas.
+BACKEND_URL=https://tu-backend.app
+
+# Email — SMTP
+SMTP_ENABLED=true
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=tu_cuenta@gmail.com
+SMTP_PASSWORD=tu_app_password
+SMTP_FROM_EMAIL=ElectroGes <tu_cuenta@gmail.com>
+SMTP_USE_TLS=true
+
+# Multi-tenant
+FRONTEND_URL=https://tu-dominio.com
+SUPERADMIN_EMAIL=admin@tu-empresa.com
 ```
 
 ---

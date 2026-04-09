@@ -50,6 +50,7 @@ services:
       - backend
     environment:
       VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+      BACKEND_INTERNAL_URL: http://backend:8000
     command: npm run dev -- --host
 
 volumes:
