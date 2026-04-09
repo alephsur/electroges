@@ -11,6 +11,7 @@ from app.api.v1.router import api_router
 from app.core.bootstrap import bootstrap_superadmin
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal
+from app.core.middleware import SecurityHeadersMiddleware
 
 LOGGING_CONFIG = {
     "version": 1,
@@ -68,6 +69,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(SecurityHeadersMiddleware)
 
 app.include_router(api_router)
 

@@ -120,7 +120,7 @@ class InvoiceRepository(BaseRepository[Invoice]):
     async def get_with_full_detail(
         self, invoice_id: uuid.UUID
     ) -> Invoice | None:
-        result = await self.session.execute(
+        stmt = (
             select(Invoice)
             .where(Invoice.id == invoice_id)
             .options(
@@ -131,12 +131,14 @@ class InvoiceRepository(BaseRepository[Invoice]):
                 selectinload(Invoice.rectifies_invoice),
             )
         )
+        stmt = self._tenant_filter(stmt)
+        result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
     async def get_by_work_order(
         self, work_order_id: uuid.UUID
     ) -> list[Invoice]:
-        result = await self.session.execute(
+        stmt = (
             select(Invoice)
             .where(Invoice.work_order_id == work_order_id)
             .options(
@@ -146,12 +148,14 @@ class InvoiceRepository(BaseRepository[Invoice]):
             )
             .order_by(Invoice.issue_date.desc())
         )
+        stmt = self._tenant_filter(stmt)
+        result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
     async def get_by_customer(
         self, customer_id: uuid.UUID
     ) -> list[Invoice]:
-        result = await self.session.execute(
+        stmt = (
             select(Invoice)
             .where(Invoice.customer_id == customer_id)
             .options(
@@ -160,6 +164,8 @@ class InvoiceRepository(BaseRepository[Invoice]):
             )
             .order_by(Invoice.issue_date.desc())
         )
+        stmt = self._tenant_filter(stmt)
+        result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
     async def get_total_invoiced_for_work_order(

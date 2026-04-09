@@ -94,7 +94,7 @@ class BudgetRepository(BaseRepository[Budget]):
         """Eager-loads customer (with addresses), site_visit, lines with inventory_item, and child_budgets."""
         from app.models.customer import Customer, CustomerAddress
 
-        result = await self.session.execute(
+        stmt = (
             select(Budget)
             .options(
                 selectinload(Budget.customer).selectinload(Customer.addresses),
@@ -105,6 +105,8 @@ class BudgetRepository(BaseRepository[Budget]):
             )
             .where(Budget.id == budget_id)
         )
+        stmt = self._tenant_filter(stmt)
+        result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
     async def get_version_chain(self, budget_id: uuid.UUID) -> list[Budget]:
@@ -112,14 +114,14 @@ class BudgetRepository(BaseRepository[Budget]):
         Returns all versions in the chain for this budget,
         ordered by version ASC.
         """
-        # First, resolve the root of the chain
+        # First, resolve the root of the chain (get_by_id already applies tenant filter)
         budget = await self.get_by_id(budget_id)
         if not budget:
             return []
         root_id = budget.parent_budget_id or budget.id
 
         # Get all budgets that share this root (either are the root or have it as parent)
-        result = await self.session.execute(
+        stmt = (
             select(Budget)
             .options(selectinload(Budget.lines))
             .where(
@@ -130,6 +132,8 @@ class BudgetRepository(BaseRepository[Budget]):
             )
             .order_by(Budget.version.asc())
         )
+        stmt = self._tenant_filter(stmt)
+        result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
     async def get_by_customer(
@@ -144,6 +148,7 @@ class BudgetRepository(BaseRepository[Budget]):
         if latest_only:
             stmt = stmt.where(Budget.is_latest_version.is_(True))
         stmt = stmt.order_by(Budget.issue_date.desc())
+        stmt = self._tenant_filter(stmt)
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 

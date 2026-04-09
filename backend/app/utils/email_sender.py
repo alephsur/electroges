@@ -53,7 +53,7 @@ async def send_email_with_attachment(
             port=settings.SMTP_PORT,
             username=settings.SMTP_USER,
             password=settings.SMTP_PASSWORD,
-            use_tls=not settings.SMTP_USE_TLS,
+            use_tls=settings.SMTP_USE_SSL,
             start_tls=settings.SMTP_USE_TLS,
         )
         logger.info("email.sent to=%s subject=%s", to_email, subject)

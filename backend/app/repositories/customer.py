@@ -75,10 +75,14 @@ class CustomerRepository(BaseRepository[Customer]):
         return result.scalar_one_or_none()
 
     async def get_default_address(self, customer_id: uuid.UUID) -> CustomerAddress | None:
-        result = await self.session.execute(
+        stmt = (
             select(CustomerAddress)
+            .join(Customer, CustomerAddress.customer_id == Customer.id)
             .where(CustomerAddress.customer_id == customer_id)
             .order_by(CustomerAddress.is_default.desc(), CustomerAddress.created_at)
             .limit(1)
         )
+        if self.tenant_id is not None:
+            stmt = stmt.where(Customer.tenant_id == self.tenant_id)
+        result = await self.session.execute(stmt)
         return result.scalar_one_or_none()

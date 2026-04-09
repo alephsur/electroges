@@ -5,16 +5,6 @@ from pydantic import BaseModel, field_validator
 from app.models.user import UserRole
 
 
-class TokenResponse(BaseModel):
-    access_token: str
-    refresh_token: str
-    token_type: str = "bearer"
-
-
-class TokenRefreshRequest(BaseModel):
-    refresh_token: str
-
-
 class LoginRequest(BaseModel):
     email: str
     password: str

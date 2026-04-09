@@ -1,8 +1,9 @@
 import uuid
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
+from fastapi.security.utils import get_authorization_scheme_param
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,7 +11,10 @@ from app.core.database import get_db
 from app.core.security import decode_token
 from app.models.user import User, UserRole
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token")
+# Kept so Swagger UI still shows the lock icon and accepts Bearer tokens.
+# auto_error=False prevents FastAPI from rejecting requests that arrive
+# without an Authorization header (cookie-authenticated requests).
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token", auto_error=False)
 
 DbSession = Annotated[AsyncSession, Depends(get_db)]
 
@@ -20,11 +24,32 @@ _credentials_exception = HTTPException(
     headers={"WWW-Authenticate": "Bearer"},
 )
 
+_ACCESS_COOKIE = "access_token"
+
+
+def _extract_token(request: Request) -> str | None:
+    """
+    Resolve the JWT access token from the request.
+    Priority: HttpOnly cookie → Authorization header (Swagger / API clients).
+    """
+    token = request.cookies.get(_ACCESS_COOKIE)
+    if token:
+        return token
+    authorization = request.headers.get("Authorization")
+    scheme, param = get_authorization_scheme_param(authorization)
+    if scheme.lower() == "bearer":
+        return param
+    return None
+
 
 async def _get_current_user(
-    token: Annotated[str, Depends(oauth2_scheme)],
+    request: Request,
     db: AsyncSession = Depends(get_db),
 ) -> User:
+    token = _extract_token(request)
+    if not token:
+        raise _credentials_exception
+
     payload = decode_token(token)
     if not payload or payload.get("type") != "access":
         raise _credentials_exception

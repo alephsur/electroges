@@ -28,6 +28,22 @@ from app.schemas.customer import (
 
 logger = logging.getLogger(__name__)
 
+_ALLOWED_DOCUMENT_MIME_TYPES: frozenset[str] = frozenset({
+    "application/pdf",
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "application/msword",                                                    # .doc
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",  # .docx
+    "application/vnd.ms-excel",                                             # .xls
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",    # .xlsx
+})
+
+_ALLOWED_DOCUMENT_EXTENSIONS: frozenset[str] = frozenset({
+    ".pdf", ".jpg", ".jpeg", ".png", ".webp",
+    ".doc", ".docx", ".xls", ".xlsx",
+})
+
 
 class CustomerService:
     def __init__(self, session: AsyncSession, tenant_id: uuid.UUID):
@@ -236,6 +252,19 @@ class CustomerService:
         """
         await self._assert_customer_exists(customer_id)
 
+        if not file.content_type or file.content_type not in _ALLOWED_DOCUMENT_MIME_TYPES:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Tipo de archivo no permitido. Se aceptan: PDF, JPG, PNG, WebP, DOC, DOCX, XLS, XLSX.",
+            )
+
+        original_ext = Path(file.filename or "").suffix.lower()
+        if original_ext not in _ALLOWED_DOCUMENT_EXTENSIONS:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Extensión de archivo no permitida. Se aceptan: .pdf, .jpg, .jpeg, .png, .webp, .doc, .docx, .xls, .xlsx.",
+            )
+
         content = await file.read()
         max_bytes = settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024
         if len(content) > max_bytes:
@@ -247,7 +276,7 @@ class CustomerService:
         upload_dir = Path(settings.UPLOAD_DIR) / "customers" / str(customer_id)
         upload_dir.mkdir(parents=True, exist_ok=True)
 
-        safe_filename = f"{uuid.uuid4()}_{file.filename}"
+        safe_filename = f"{uuid.uuid4()}{original_ext}"
         file_path = upload_dir / safe_filename
         file_path.write_bytes(content)
 
@@ -394,7 +423,7 @@ class CustomerService:
 
         budget_repo = BudgetRepository(self._session)
         budgets = await budget_repo.get_by_customer(customer_id, latest_only=True)
-        svc = BudgetService(self._session)
+        svc = BudgetService(self._session, self._tenant_id)
         events = []
         for b in budgets:
             effective_status = svc._get_effective_status(b)
@@ -450,9 +479,9 @@ class CustomerService:
         from app.repositories.invoice import InvoiceRepository
         from app.services.invoice import InvoiceService
 
-        invoice_repo = InvoiceRepository(self._session)
+        invoice_repo = InvoiceRepository(self._session, self._tenant_id)
         invoices = await invoice_repo.get_by_customer(customer_id)
-        svc = InvoiceService(self._session)
+        svc = InvoiceService(self._session, self._tenant_id)
         events = []
 
         for inv in invoices:

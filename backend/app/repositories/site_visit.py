@@ -81,7 +81,7 @@ class SiteVisitRepository(BaseRepository[SiteVisit]):
 
     async def get_with_full_detail(self, visit_id: uuid.UUID) -> SiteVisit | None:
         """Eager-loads all related objects for the detail view."""
-        result = await self.session.execute(
+        stmt = (
             select(SiteVisit)
             .options(
                 selectinload(SiteVisit.customer),
@@ -92,19 +92,23 @@ class SiteVisitRepository(BaseRepository[SiteVisit]):
             )
             .where(SiteVisit.id == visit_id)
         )
+        stmt = self._tenant_filter(stmt)
+        result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
     async def get_by_customer(
         self, customer_id: uuid.UUID, skip: int, limit: int
     ) -> list[SiteVisit]:
         """For the customer timeline."""
-        result = await self.session.execute(
+        stmt = (
             select(SiteVisit)
             .where(SiteVisit.customer_id == customer_id)
             .order_by(SiteVisit.visit_date.desc())
             .offset(skip)
             .limit(limit)
         )
+        stmt = self._tenant_filter(stmt)
+        result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
     async def reorder_photos(

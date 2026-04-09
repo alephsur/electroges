@@ -102,7 +102,7 @@ class WorkOrderRepository(BaseRepository[WorkOrder]):
         from app.models.budget import Budget
         from app.models.purchase_order import PurchaseOrder, PurchaseOrderLine
 
-        result = await self.session.execute(
+        stmt = (
             select(WorkOrder)
             .options(
                 selectinload(WorkOrder.customer),
@@ -130,14 +130,18 @@ class WorkOrderRepository(BaseRepository[WorkOrder]):
             )
             .where(WorkOrder.id == work_order_id)
         )
+        stmt = self._tenant_filter(stmt)
+        result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
     async def get_by_customer(self, customer_id: uuid.UUID) -> list[WorkOrder]:
-        result = await self.session.execute(
+        stmt = (
             select(WorkOrder)
             .where(WorkOrder.customer_id == customer_id)
             .order_by(WorkOrder.created_at.desc())
         )
+        stmt = self._tenant_filter(stmt)
+        result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
     async def check_all_tasks_completed(self, work_order_id: uuid.UUID) -> bool:
