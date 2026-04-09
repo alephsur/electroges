@@ -26,10 +26,7 @@ const ADMIN_ITEMS = [
 
 function resolveLogoUrl(url: string | null | undefined): string | null {
   if (!url) return null;
-  if (url.startsWith("/uploads")) {
-    const base = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
-    return `${base}${url}`;
-  }
+  // /uploads/* are always relative paths: nginx proxies them in prod, Vite proxy in dev.
   return url;
 }
 

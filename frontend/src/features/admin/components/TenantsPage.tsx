@@ -182,25 +182,29 @@ function LogoUploader({
   isUploading: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const [imgError, setImgError] = useState(false);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) onUpload(tenant.id, file);
+    if (file) {
+      setImgError(false);
+      onUpload(tenant.id, file);
+    }
     // reset so the same file can be re-selected
     e.target.value = "";
   };
 
-  const logoSrc = tenant.logo_url?.startsWith("/uploads")
-    ? `${import.meta.env.VITE_API_URL ?? "http://localhost:8000"}${tenant.logo_url}`
-    : tenant.logo_url;
+  // /uploads/* are always relative: nginx proxies them in prod, Vite proxy in dev.
+  const logoSrc = tenant.logo_url ?? null;
 
   return (
     <div className="flex items-center gap-3">
-      {logoSrc ? (
+      {logoSrc && !imgError ? (
         <img
           src={logoSrc}
           alt="Logo actual"
           className="h-10 w-auto max-w-[100px] object-contain rounded border border-gray-200 bg-white p-1"
+          onError={() => setImgError(true)}
         />
       ) : (
         <div className="h-10 w-16 rounded border border-dashed border-gray-300 flex items-center justify-center text-gray-300">
