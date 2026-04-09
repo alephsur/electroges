@@ -164,11 +164,15 @@ class WorkOrderCreate(BaseModel):
     customer_id: UUID
     address: str | None = Field(default=None, max_length=500)
     notes: str | None = None
+    start_date: date | None = None
+    end_date: date | None = None
 
 
 class WorkOrderUpdate(BaseModel):
     address: str | None = None
     notes: str | None = None
+    start_date: date | None = None
+    end_date: date | None = None
 
 
 class WorkOrderStatusUpdate(BaseModel):
@@ -216,6 +220,8 @@ class WorkOrderSummary(BaseModel):
     budget_number: str | None
     status: str
     address: str | None
+    start_date: date | None
+    end_date: date | None
     total_tasks: int
     completed_tasks: int
     progress_pct: Decimal

@@ -1036,6 +1036,8 @@ class WorkOrderService:
             budget_number=budget.budget_number if budget else None,
             status=order.status.value,
             address=order.address,
+            start_date=order.start_date,
+            end_date=order.end_date,
             total_tasks=total_tasks,
             completed_tasks=completed_tasks,
             progress_pct=progress_pct.quantize(Decimal("0.1")),

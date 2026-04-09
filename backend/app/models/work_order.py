@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import enum
 import uuid
+from datetime import date
 from decimal import Decimal
 
 from sqlalchemy import (
+    Date,
     Enum as SQLEnum,
     ForeignKey,
     Integer,
@@ -89,6 +91,8 @@ class WorkOrder(UUIDMixin, TimestampMixin, Base):
     assigned_to: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), nullable=True
     )
+    start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
 
     # Relationships
     customer: Mapped["Customer"] = relationship(back_populates="work_orders")

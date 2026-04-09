@@ -12,6 +12,7 @@ import { WorkOrdersPage } from "@/features/work-orders/components/WorkOrdersPage
 import { InvoicingPage } from "@/features/invoicing/components/InvoicingPage";
 import { DashboardPage } from "@/features/dashboard/components/DashboardPage";
 import { TenantsPage } from "@/features/admin/components/TenantsPage";
+import { CalendarPage } from "@/features/calendar/components/CalendarPage";
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -47,6 +48,7 @@ export default function App() {
         <Route path="facturacion/*" element={<InvoicingPage />} />
         <Route path="inventario/*" element={<InventoryPage />} />
         <Route path="proveedores/*" element={<SuppliersPage />} />
+        <Route path="calendario" element={<CalendarPage />} />
 
         {/* Superadmin-only routes */}
         <Route

@@ -23,3 +23,4 @@ from app.models.work_order import (  # noqa: F401
 )
 
 from app.models.invoice import Invoice, InvoiceLine, Payment  # noqa: F401
+from app.models.calendar_event import CalendarEvent  # noqa: F401
