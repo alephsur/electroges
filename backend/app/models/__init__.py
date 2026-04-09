@@ -1,6 +1,7 @@
 # Import all models here so Alembic can detect them in autogenerate.
 # Import order matters to avoid circular imports.
 from app.models.base import TimestampMixin, UUIDMixin  # noqa: F401
+from app.models.tenant import Tenant  # noqa: F401
 from app.models.user import User  # noqa: F401
 from app.models.supplier import Supplier  # noqa: F401
 from app.models.inventory_item import InventoryItem  # noqa: F401
