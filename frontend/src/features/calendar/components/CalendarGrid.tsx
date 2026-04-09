@@ -2,7 +2,7 @@
  * CalendarGrid — custom month/week calendar built with dayjs + Tailwind.
  * No external calendar library needed.
  */
-import { useMemo, useState } from 'react'
+import type { MouseEvent } from 'react'
 import dayjs from 'dayjs'
 import { useNavigate } from 'react-router-dom'
 import type { CalendarAggregatedEvent } from '../types'
@@ -33,7 +33,7 @@ interface EventInCell {
 function buildMonthGrid(current: dayjs.Dayjs): DayCell[][] {
   const startOfMonth = current.startOf('month')
   // Week starts on Monday (dayjs: 1=Mon, 7=Sun)
-  let startDay = startOfMonth.day() // 0=Sun ... 6=Sat
+  let startDay: number = startOfMonth.day() // 0=Sun ... 6=Sat
   startDay = startDay === 0 ? 6 : startDay - 1 // shift so 0=Mon
   const firstCell = startOfMonth.subtract(startDay, 'day')
   const today = dayjs().startOf('day')
@@ -58,7 +58,7 @@ function buildMonthGrid(current: dayjs.Dayjs): DayCell[][] {
 }
 
 function buildWeekGrid(current: dayjs.Dayjs): DayCell[] {
-  let startDay = current.day()
+  let startDay: number = current.day()
   startDay = startDay === 0 ? 6 : startDay - 1
   const monday = current.subtract(startDay, 'day')
   const today = dayjs().startOf('day')
@@ -104,11 +104,11 @@ function getEventsForDay(
 
 interface EventPillProps {
   item: EventInCell
-  onClick: (e: React.MouseEvent, ev: CalendarAggregatedEvent) => void
+  onClick: (e: MouseEvent, ev: CalendarAggregatedEvent) => void
 }
 
 function EventPill({ item, onClick }: EventPillProps) {
-  const { event, spanDays, isContinuation } = item
+  const { event, isContinuation } = item
   const typeLabel = EVENT_TYPE_LABELS[event.event_type] ?? ''
 
   return (
@@ -141,7 +141,7 @@ interface Props {
 export function CalendarGrid({ view, currentDate, events, onDayClick, onEventClick }: Props) {
   const navigate = useNavigate()
 
-  const handleEventClick = (e: React.MouseEvent, ev: CalendarAggregatedEvent) => {
+  const handleEventClick = (e: MouseEvent, ev: CalendarAggregatedEvent) => {
     e.stopPropagation()
     if (ev.event_type === 'custom') {
       onEventClick(ev)
