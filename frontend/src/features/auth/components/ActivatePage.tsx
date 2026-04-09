@@ -46,16 +46,11 @@ export function ActivatePage() {
     try {
       const { data } = await apiClient.post("/api/v1/auth/activate", { token, password });
 
-      // Store tokens and fetch user profile
-      useAuthStore.setState({
-        accessToken: data.access_token,
-        refreshToken: data.refresh_token,
-        isAuthenticated: true,
-      });
+      // Fetch user profile and update store (tokens live in HttpOnly cookies)
       const { data: user } = await apiClient.get("/api/v1/auth/me", {
         headers: { Authorization: `Bearer ${data.access_token}` },
       });
-      useAuthStore.setState({ user });
+      useAuthStore.setState({ user, isAuthenticated: true });
 
       navigate("/dashboard", { replace: true });
     } catch (err: unknown) {
