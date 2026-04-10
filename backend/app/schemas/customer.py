@@ -1,5 +1,4 @@
 from datetime import datetime
-from decimal import Decimal
 from typing import Literal
 from uuid import UUID
 
@@ -98,8 +97,8 @@ class CustomerSummary(BaseModel):
     is_active: bool
     # Calculated metrics (defaults to 0 until dependent modules exist)
     active_work_orders: int = 0
-    total_billed: Decimal = Decimal("0.00")
-    pending_amount: Decimal = Decimal("0.00")
+    total_billed: float = 0.0
+    pending_amount: float = 0.0
     last_activity_at: datetime | None = None
     # Primary address (the is_default one or the first)
     primary_address: CustomerAddressResponse | None = None
@@ -146,7 +145,7 @@ class TimelineEvent(BaseModel):
     subtitle: str | None  # Additional detail (reference number, amount, etc.)
     reference_id: UUID   # ID of the related object (for navigation)
     reference_type: str  # "site_visit" | "budget" | "work_order" | "invoice"
-    amount: Decimal | None = None  # For monetary events
+    amount: float | None = None  # For monetary events
     status: str | None = None      # Current status of the related object
 
 
@@ -157,5 +156,5 @@ class CustomerTimeline(BaseModel):
     total_site_visits: int = 0
     total_budgets: int = 0
     total_work_orders: int = 0
-    total_invoiced: Decimal = Decimal("0.00")
-    total_pending: Decimal = Decimal("0.00")
+    total_invoiced: float = 0.0
+    total_pending: float = 0.0

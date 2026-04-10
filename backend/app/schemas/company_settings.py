@@ -28,7 +28,7 @@ class CompanySettingsResponse(BaseModel):
     bank_account: str | None
     logo_path: str | None
     general_conditions: str | None
-    default_tax_rate: Decimal
+    default_tax_rate: float
     default_validity_days: int
 
     model_config = {"from_attributes": True}

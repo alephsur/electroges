@@ -40,9 +40,9 @@ class PurchaseOrderLineResponse(BaseModel):
     purchase_order_id: UUID
     inventory_item_id: UUID | None
     description: str | None
-    quantity: Decimal
-    unit_cost: Decimal
-    subtotal: Decimal
+    quantity: float
+    unit_cost: float
+    subtotal: float
     inventory_item: InventoryItemBrief | None = None
     created_at: datetime
     updated_at: datetime
@@ -63,7 +63,7 @@ class PurchaseOrderSummary(BaseModel):
     created_at: datetime
     updated_at: datetime
     # Populated by the repository via a correlated subquery — not an ORM column
-    total: Decimal = Decimal("0")
+    total: float = 0.0
 
 
 class PurchaseOrderListResponse(BaseModel):
@@ -90,5 +90,5 @@ class PurchaseOrderResponse(BaseModel):
 
     @computed_field
     @property
-    def total(self) -> Decimal:
-        return sum((line.subtotal for line in self.lines), Decimal("0"))
+    def total(self) -> float:
+        return sum(line.subtotal for line in self.lines)

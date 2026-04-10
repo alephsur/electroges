@@ -30,8 +30,8 @@ class SupplierItemResponse(BaseModel):
     supplier_name: str  # populated from the supplier relationship
     inventory_item_id: UUID
     supplier_ref: str | None
-    unit_cost: Decimal
-    last_purchase_cost: Decimal | None
+    unit_cost: float
+    last_purchase_cost: float | None
     last_purchase_date: date | None
     lead_time_days: int | None
     is_preferred: bool

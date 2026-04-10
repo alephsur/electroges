@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from decimal import Decimal
 
 from pydantic import BaseModel
 
@@ -15,8 +14,8 @@ class BudgetStats(BaseModel):
     accepted: int
     rejected: int
     expired: int
-    total_amount: Decimal
-    accepted_amount: Decimal
+    total_amount: float
+    accepted_amount: float
     conversion_rate: float  # percentage 0–100
 
 
@@ -37,10 +36,10 @@ class InvoiceStats(BaseModel):
     paid: int
     cancelled: int
     overdue_count: int
-    total_invoiced: Decimal
-    total_collected: Decimal
-    total_pending: Decimal
-    overdue_amount: Decimal
+    total_invoiced: float
+    total_collected: float
+    total_pending: float
+    overdue_amount: float
     avg_collection_days: float | None
 
 
@@ -63,14 +62,14 @@ class SiteVisitStats(BaseModel):
 class MonthlyRevenue(BaseModel):
     month: str   # "2025-01"
     label: str   # "Ene 25"
-    invoiced: Decimal
-    collected: Decimal
+    invoiced: float
+    collected: float
 
 
 class TopCustomer(BaseModel):
     customer_id: str
     customer_name: str
-    invoiced: Decimal
+    invoiced: float
     invoice_count: int
 
 
@@ -78,8 +77,8 @@ class OverdueInvoiceItem(BaseModel):
     id: str
     invoice_number: str
     customer_name: str
-    total: Decimal
-    pending_amount: Decimal
+    total: float
+    pending_amount: float
     days_overdue: int
 
 
@@ -87,7 +86,7 @@ class PendingBudgetItem(BaseModel):
     id: str
     budget_number: str
     customer_name: str
-    total: Decimal
+    total: float
     days_since_sent: int
 
 

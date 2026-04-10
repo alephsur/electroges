@@ -19,7 +19,7 @@ class PaymentCreate(BaseModel):
 class PaymentResponse(BaseModel):
     id: UUID
     invoice_id: UUID
-    amount: Decimal
+    amount: float
     payment_date: date
     method: str
     reference: str | None
@@ -57,24 +57,24 @@ class InvoiceLineResponse(BaseModel):
     origin_id: UUID | None
     sort_order: int
     description: str
-    quantity: Decimal
+    quantity: float
     unit: str | None
-    unit_price: Decimal
-    line_discount_pct: Decimal
-    subtotal: Decimal
+    unit_price: float
+    line_discount_pct: float
+    subtotal: float
     model_config = {"from_attributes": True}
 
 
 # ── Totals ────────────────────────────────────────────────────────────────────
 
 class InvoiceTotals(BaseModel):
-    subtotal_before_discount: Decimal
-    discount_amount: Decimal
-    taxable_base: Decimal
-    tax_amount: Decimal
-    total: Decimal
-    total_paid: Decimal
-    pending_amount: Decimal
+    subtotal_before_discount: float
+    discount_amount: float
+    taxable_base: float
+    tax_amount: float
+    total: float
+    total_paid: float
+    pending_amount: float
     is_fully_paid: bool
 
 
@@ -140,9 +140,9 @@ class InvoiceSummary(BaseModel):
     effective_status: str
     issue_date: date
     due_date: date
-    total: Decimal
-    total_paid: Decimal
-    pending_amount: Decimal
+    total: float
+    total_paid: float
+    pending_amount: float
     days_overdue: int
     has_pdf: bool
     created_at: datetime
@@ -150,8 +150,8 @@ class InvoiceSummary(BaseModel):
 
 
 class InvoiceResponse(InvoiceSummary):
-    discount_pct: Decimal
-    tax_rate: Decimal
+    discount_pct: float
+    tax_rate: float
     notes: str | None
     client_notes: str | None
     lines: list[InvoiceLineResponse] = []

@@ -39,10 +39,10 @@ class SiteVisitMaterialResponse(BaseModel):
     inventory_item_id: UUID | None
     inventory_item_name: str | None = None
     description: str | None
-    estimated_qty: Decimal
+    estimated_qty: float
     unit: str | None
-    unit_cost: Decimal | None
-    subtotal: Decimal | None = None
+    unit_cost: float | None
+    subtotal: float | None = None
     created_at: datetime
 
 
@@ -149,7 +149,7 @@ class SiteVisitSummary(BaseModel):
     visit_date: datetime
     status: str
     description: str | None
-    estimated_budget: Decimal | None
+    estimated_budget: float | None
     has_photos: bool = False
     has_documents: bool = False
     materials_count: int = 0
@@ -170,13 +170,13 @@ class SiteVisitResponse(BaseModel):
     contact_name: str | None
     contact_phone: str | None
     visit_date: datetime
-    estimated_duration_hours: Decimal | None
+    estimated_duration_hours: float | None
     status: str
     description: str | None
     work_scope: str | None
     technical_notes: str | None
-    estimated_hours: Decimal | None
-    estimated_budget: Decimal | None
+    estimated_hours: float | None
+    estimated_budget: float | None
     materials: list[SiteVisitMaterialResponse] = []
     photos: list[SiteVisitPhotoResponse] = []
     documents: list[SiteVisitDocumentResponse] = []

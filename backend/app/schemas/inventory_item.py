@@ -55,10 +55,10 @@ class InventoryItemBrief(BaseModel):
     name: str
     description: str | None
     unit: str
-    unit_cost: Decimal
-    unit_price: Decimal
-    stock_current: Decimal
-    stock_min: Decimal
+    unit_cost: float
+    unit_price: float
+    stock_current: float
+    stock_min: float
     is_active: bool
 
 
@@ -69,19 +69,19 @@ class InventoryItemResponse(BaseModel):
     name: str
     description: str | None
     unit: str
-    unit_cost: Decimal
-    unit_cost_avg: Decimal = Decimal("0")
-    unit_price: Decimal
-    stock_current: Decimal
-    stock_min: Decimal
+    unit_cost: float
+    unit_cost_avg: float = 0.0
+    unit_price: float
+    stock_current: float
+    stock_min: float
     supplier_id: UUID | None
     is_active: bool
     created_at: datetime
     updated_at: datetime
 
     # Computed fields (populated by InventoryService._enrich_item)
-    stock_reserved: Decimal = Decimal("0")
-    stock_available: Decimal = Decimal("0")
+    stock_reserved: float = 0.0
+    stock_available: float = 0.0
     low_stock_alert: bool = False
     last_movement_at: datetime | None = None
 

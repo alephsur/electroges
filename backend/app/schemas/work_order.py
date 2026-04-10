@@ -20,12 +20,12 @@ class TaskMaterialResponse(BaseModel):
     inventory_item_id: UUID
     inventory_item_name: str
     inventory_item_unit: str
-    estimated_quantity: Decimal
-    consumed_quantity: Decimal
-    pending_quantity: Decimal
-    unit_cost: Decimal
-    estimated_cost: Decimal
-    actual_cost: Decimal
+    estimated_quantity: float
+    consumed_quantity: float
+    pending_quantity: float
+    unit_cost: float
+    estimated_cost: float
+    actual_cost: float
 
 
 class TaskMaterialCreate(BaseModel):
@@ -74,12 +74,12 @@ class TaskResponse(BaseModel):
     description: str | None
     status: str
     sort_order: int
-    unit_price: Decimal | None
-    estimated_hours: Decimal | None
-    actual_hours: Decimal | None
+    unit_price: float | None
+    estimated_hours: float | None
+    actual_hours: float | None
     materials: list[TaskMaterialResponse] = []
-    estimated_cost: Decimal
-    actual_cost: Decimal
+    estimated_cost: float
+    actual_cost: float
     is_certified: bool
     certification_id: UUID | None
     created_at: datetime
@@ -96,9 +96,9 @@ class LinkedPOLineResponse(BaseModel):
     """Embedded line inside a LinkedPurchaseOrderResponse."""
     inventory_item_name: str | None
     description: str | None
-    quantity: Decimal
-    unit_cost: Decimal
-    subtotal: Decimal
+    quantity: float
+    unit_cost: float
+    subtotal: float
 
 
 class LinkedPurchaseOrderResponse(BaseModel):
@@ -114,7 +114,7 @@ class LinkedPurchaseOrderResponse(BaseModel):
     status: str
     order_date: str
     expected_date: str | None
-    total_amount: Decimal
+    total_amount: float
     notes: str | None
     lines: list[LinkedPOLineResponse] = []
 
@@ -139,7 +139,7 @@ class CertificationItemResponse(BaseModel):
     task_id: UUID
     task_name: str
     task_status: str
-    amount: Decimal
+    amount: float
     notes: str | None
 
 
@@ -153,7 +153,7 @@ class CertificationResponse(BaseModel):
     notes: str | None
     invoice_id: UUID | None
     items: list[CertificationItemResponse] = []
-    total_amount: Decimal
+    total_amount: float
     created_at: datetime
     updated_at: datetime
 
@@ -183,25 +183,25 @@ class WorkOrderStatusUpdate(BaseModel):
 class WorkOrderKPIs(BaseModel):
     total_tasks: int
     completed_tasks: int
-    progress_pct: Decimal
+    progress_pct: float
 
-    estimated_hours: Decimal
-    actual_hours: Decimal
-    hours_deviation_pct: Decimal
+    estimated_hours: float
+    actual_hours: float
+    hours_deviation_pct: float
 
-    budget_cost: Decimal
-    actual_cost: Decimal
-    cost_deviation_pct: Decimal
+    budget_cost: float
+    actual_cost: float
+    cost_deviation_pct: float
 
     total_task_materials: int
     fully_consumed_materials: int
     pending_materials: int
 
-    budget_total: Decimal
-    total_certified: Decimal
-    total_invoiced: Decimal
-    pending_to_certify: Decimal
-    margin_real_pct: Decimal
+    budget_total: float
+    total_certified: float
+    total_invoiced: float
+    pending_to_certify: float
+    margin_real_pct: float
 
     total_purchase_orders: int
     pending_purchase_orders: int
@@ -224,10 +224,10 @@ class WorkOrderSummary(BaseModel):
     end_date: date | None
     total_tasks: int
     completed_tasks: int
-    progress_pct: Decimal
-    budget_total: Decimal
-    total_certified: Decimal
-    actual_cost: Decimal
+    progress_pct: float
+    budget_total: float
+    total_certified: float
+    actual_cost: float
     created_at: datetime
 
 
@@ -285,10 +285,10 @@ class DeliveryNoteItemResponse(BaseModel):
     description: str
     inventory_item_id: UUID | None
     inventory_item_name: str | None
-    quantity: Decimal
+    quantity: float
     unit: str
-    unit_price: Decimal
-    subtotal: Decimal
+    unit_price: float
+    subtotal: float
     sort_order: int
 
 
@@ -303,7 +303,7 @@ class DeliveryNoteResponse(BaseModel):
     requested_by: str | None
     notes: str | None
     items: list[DeliveryNoteItemResponse] = []
-    total_amount: Decimal
+    total_amount: float
     created_at: datetime
     updated_at: datetime
 

@@ -23,8 +23,8 @@ class StockMovementResponse(BaseModel):
     inventory_item_id: UUID
     inventory_item_name: str  # populated from the inventory_item relationship
     movement_type: str
-    quantity: Decimal
-    unit_cost: Decimal
+    quantity: float
+    unit_cost: float
     reference_type: str
     reference_id: UUID | None
     notes: str | None
