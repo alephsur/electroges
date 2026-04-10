@@ -1,15 +1,8 @@
+import { formatEur } from '../../../shared/utils/format'
 import type { TopCustomer } from '../types'
 
 interface Props {
   customers: TopCustomer[]
-}
-
-function formatEur(value: number) {
-  return new Intl.NumberFormat('es-ES', {
-    style: 'currency',
-    currency: 'EUR',
-    maximumFractionDigits: 0,
-  }).format(value)
 }
 
 export function TopCustomersTable({ customers }: Props) {

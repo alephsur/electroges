@@ -1,13 +1,6 @@
 import { AlertTriangle, Clock } from 'lucide-react'
+import { formatEur } from '../../../shared/utils/format'
 import type { OverdueInvoiceItem, PendingBudgetItem } from '../types'
-
-function formatEur(value: number) {
-  return new Intl.NumberFormat('es-ES', {
-    style: 'currency',
-    currency: 'EUR',
-    maximumFractionDigits: 0,
-  }).format(value)
-}
 
 interface Props {
   overdueInvoices: OverdueInvoiceItem[]

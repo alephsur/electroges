@@ -17,15 +17,8 @@ import { MonthlyRevenueChart } from './MonthlyRevenueChart'
 import { AlertsBanner } from './AlertsBanner'
 import { TopCustomersTable } from './TopCustomersTable'
 import { RecentActivityFeed } from './RecentActivityFeed'
+import { formatEur } from '../../../shared/utils/format'
 import type { DateRange } from '../types'
-
-function formatEur(value: number) {
-  return new Intl.NumberFormat('es-ES', {
-    style: 'currency',
-    currency: 'EUR',
-    maximumFractionDigits: 0,
-  }).format(value)
-}
 
 function formatPct(value: number) {
   return `${value.toFixed(1)}%`
