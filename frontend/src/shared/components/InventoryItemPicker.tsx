@@ -100,7 +100,7 @@ export function InventoryItemPicker({
             {value.unit} · {fmt(Number(value.unit_cost_avg || value.unit_cost || 0))} €/ud
           </span>
           {value.low_stock_alert && (
-            <AlertTriangle size={12} className="shrink-0 text-amber-500" title="Stock bajo mínimo" />
+            <AlertTriangle size={12} className="shrink-0 text-amber-500" aria-label="Stock bajo mínimo" />
           )}
         </div>
         <button

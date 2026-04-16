@@ -110,7 +110,7 @@ export function BudgetForm({ customerId, customerName, onClose }: BudgetFormProp
       },
       {
         onSuccess: (newCustomer) => {
-          setSelectedCustomer({ id: newCustomer.id, name: newCustomer.name, tax_id: newCustomer.tax_id ?? null, phone: newCustomer.phone ?? null })
+          setSelectedCustomer(newCustomer)
           setSearchQuery(newCustomer.name)
           setShowQuickCreate(false)
         },
