@@ -312,26 +312,34 @@ class CustomerService:
     # ── Timeline ──────────────────────────────────────────────────────────────
 
     async def get_timeline(self, customer_id: uuid.UUID) -> CustomerTimeline:
-        """
-        Builds the unified customer timeline by aggregating events from all modules.
-
-        IMPORTANT: at this phase only the Customer module exists. SiteVisit, Budget,
-        WorkOrder and Invoice modules are not implemented yet. Each _get_*_events()
-        method returns [] until its module is implemented.
-        """
+        """Builds the unified customer timeline by aggregating events from all modules."""
         await self._assert_customer_exists(customer_id)
 
         events: list[TimelineEvent] = []
         events += await self._get_site_visit_events(customer_id)
         events += await self._get_budget_events(customer_id)
-        events += await self._get_work_order_events(customer_id)   # TODO: WorkOrder module
-        events += await self._get_invoice_events(customer_id)      # TODO: Invoice module
+        events += await self._get_work_order_events(customer_id)
+        events += await self._get_invoice_events(customer_id)
 
         events.sort(key=lambda e: e.event_date, reverse=True)
+
+        total_invoiced = sum(
+            e.amount for e in events
+            if e.event_type == "invoice_issued" and e.status == "paid" and e.amount is not None
+        )
+        total_pending = sum(
+            e.amount for e in events
+            if e.event_type == "invoice_issued" and e.status in ("sent", "overdue") and e.amount is not None
+        )
 
         return CustomerTimeline(
             customer_id=customer_id,
             events=events,
+            total_site_visits=sum(1 for e in events if e.event_type == "site_visit"),
+            total_budgets=sum(1 for e in events if e.event_type == "budget_created"),
+            total_work_orders=sum(1 for e in events if e.event_type == "work_order_created"),
+            total_invoiced=float(total_invoiced),
+            total_pending=float(total_pending),
         )
 
     # ── Private helpers ───────────────────────────────────────────────────────
@@ -354,11 +362,31 @@ class CustomerService:
             )
 
     async def _build_summary(self, customer: Customer) -> CustomerSummary:
-        """
-        Calculates metrics for the list view.
-        Returns default values (0) in this phase.
-        Will be enriched when WorkOrder and Invoice modules exist.
-        """
+        """Calculates metrics for the list view."""
+        from app.models.invoice import InvoiceStatus
+        from app.repositories.invoice import InvoiceRepository
+        from app.repositories.work_order import WorkOrderRepository
+
+        wo_repo = WorkOrderRepository(self._session, self._tenant_id)
+        work_orders = await wo_repo.get_by_customer(customer.id)
+        active_statuses = {"draft", "in_progress", "pending_closure"}
+        active_work_orders = sum(
+            1 for wo in work_orders if wo.status.value in active_statuses
+        )
+
+        invoice_repo = InvoiceRepository(self._session, self._tenant_id)
+        invoices = await invoice_repo.get_by_customer(customer.id)
+        total_billed = Decimal("0.00")
+        pending_amount = Decimal("0.00")
+        for inv in invoices:
+            if inv.is_rectification:
+                continue
+            total = invoice_repo._calculate_total(inv)
+            if inv.status == InvoiceStatus.PAID:
+                total_billed += total
+            elif inv.status == InvoiceStatus.SENT:
+                pending_amount += total
+
         primary_address = next(
             (a for a in customer.addresses if a.is_default),
             customer.addresses[0] if customer.addresses else None,
@@ -372,9 +400,9 @@ class CustomerService:
             phone=customer.phone,
             contact_person=customer.contact_person,
             is_active=customer.is_active,
-            active_work_orders=0,           # TODO: count active WorkOrders
-            total_billed=Decimal("0.00"),   # TODO: sum paid Invoices
-            pending_amount=Decimal("0.00"), # TODO: sum pending Invoices
+            active_work_orders=active_work_orders,
+            total_billed=total_billed,
+            pending_amount=pending_amount,
             last_activity_at=customer.updated_at,
             primary_address=(
                 CustomerAddressResponse.model_validate(primary_address)
@@ -396,7 +424,7 @@ class CustomerService:
 
     async def _get_site_visit_events(self, customer_id: uuid.UUID) -> list[TimelineEvent]:
         from app.repositories.site_visit import SiteVisitRepository
-        visit_repo = SiteVisitRepository(self._session)
+        visit_repo = SiteVisitRepository(self._session, self._tenant_id)
         visits = await visit_repo.get_by_customer(customer_id, skip=0, limit=100)
         events = []
         for v in visits:
@@ -445,7 +473,7 @@ class CustomerService:
     async def _get_work_order_events(self, customer_id: uuid.UUID) -> list[TimelineEvent]:
         from app.repositories.work_order import WorkOrderRepository
 
-        repo = WorkOrderRepository(self._session)
+        repo = WorkOrderRepository(self._session, self._tenant_id)
         orders = await repo.get_by_customer(customer_id)
         events = []
         for o in orders:

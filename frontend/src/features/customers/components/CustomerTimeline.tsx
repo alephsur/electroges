@@ -1,4 +1,5 @@
 import { Clock, FileText, Briefcase, Receipt, MapPin } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { useCustomerTimeline } from '../hooks/use-customers'
 import type { TimelineEvent, TimelineEventType } from '../types'
 
@@ -79,11 +80,19 @@ function groupEventsByMonth(events: TimelineEvent[]): Map<string, TimelineEvent[
   return groups
 }
 
+const REFERENCE_ROUTES: Record<string, (id: string) => string> = {
+  site_visit: (id) => `/visitas/${id}`,
+  budget: (id) => `/presupuestos/${id}`,
+  work_order: (id) => `/obras/${id}`,
+  invoice: (id) => `/facturacion/${id}`,
+}
+
 interface CustomerTimelineProps {
   customerId: string
 }
 
 export function CustomerTimeline({ customerId }: CustomerTimelineProps) {
+  const navigate = useNavigate()
   const { data, isLoading } = useCustomerTimeline(customerId)
 
   if (isLoading) {
@@ -110,7 +119,34 @@ export function CustomerTimeline({ customerId }: CustomerTimelineProps) {
   const groups = groupEventsByMonth(data.events)
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
+      {/* Summary metrics strip */}
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div className="rounded-lg bg-blue-50 px-3 py-2 text-center">
+          <p className="text-lg font-semibold text-blue-700">{data.total_site_visits}</p>
+          <p className="text-xs text-blue-500">Visitas</p>
+        </div>
+        <div className="rounded-lg bg-amber-50 px-3 py-2 text-center">
+          <p className="text-lg font-semibold text-amber-700">{data.total_budgets}</p>
+          <p className="text-xs text-amber-500">Presupuestos</p>
+        </div>
+        <div className="rounded-lg bg-green-50 px-3 py-2 text-center">
+          <p className="text-lg font-semibold text-green-700">{data.total_work_orders}</p>
+          <p className="text-xs text-green-500">Obras</p>
+        </div>
+        <div className="rounded-lg bg-emerald-50 px-3 py-2 text-center">
+          <p className="text-lg font-semibold text-emerald-700">
+            {data.total_invoiced.toLocaleString('es-ES', {
+              style: 'currency',
+              currency: 'EUR',
+              maximumFractionDigits: 0,
+            })}
+          </p>
+          <p className="text-xs text-emerald-500">Facturado</p>
+        </div>
+      </div>
+
+      {/* Timeline events grouped by month */}
       {Array.from(groups.entries()).map(([month, events]) => (
         <div key={month}>
           {/* Month separator */}
@@ -130,6 +166,7 @@ export function CustomerTimeline({ customerId }: CustomerTimelineProps) {
             <div className="space-y-4">
               {events.map((event, idx) => {
                 const config = EVENT_CONFIG[event.event_type]
+                const detailRoute = REFERENCE_ROUTES[event.reference_type]?.(event.reference_id)
                 return (
                   <div key={`${event.reference_id}-${idx}`} className="relative flex gap-3">
                     {/* Dot */}
@@ -164,14 +201,14 @@ export function CustomerTimeline({ customerId }: CustomerTimelineProps) {
                           </span>
                         </div>
                       </div>
-                      {/* Coming-soon navigation link */}
-                      <button
-                        disabled
-                        className="mt-1 text-xs text-gray-300 cursor-not-allowed"
-                        title="Módulo en desarrollo"
-                      >
-                        Ver detalle →
-                      </button>
+                      {detailRoute && (
+                        <button
+                          onClick={() => navigate(detailRoute)}
+                          className="mt-1 text-xs text-brand-600 hover:text-brand-700 hover:underline"
+                        >
+                          Ver detalle →
+                        </button>
+                      )}
                     </div>
                   </div>
                 )
