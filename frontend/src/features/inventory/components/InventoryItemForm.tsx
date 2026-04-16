@@ -8,9 +8,10 @@ const UNIT_OPTIONS = ['ud', 'm', 'm²', 'm³', 'kg', 'l', 'caja', 'rollo', 'bobi
 interface InventoryItemFormProps {
   supplierId?: string
   onClose: () => void
+  onCreated?: (id: string) => void
 }
 
-export function InventoryItemForm({ supplierId, onClose }: InventoryItemFormProps) {
+export function InventoryItemForm({ supplierId, onClose, onCreated }: InventoryItemFormProps) {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [unit, setUnit] = useState('ud')
@@ -27,7 +28,7 @@ export function InventoryItemForm({ supplierId, onClose }: InventoryItemFormProp
     setError(null)
 
     try {
-      await createMutation.mutateAsync({
+      const result = await createMutation.mutateAsync({
         name: name.trim(),
         description: description.trim() || null,
         unit,
@@ -38,6 +39,7 @@ export function InventoryItemForm({ supplierId, onClose }: InventoryItemFormProp
         supplier_ref: supplierRef.trim() || null,
         is_preferred: true,
       })
+      onCreated?.(result.id)
       onClose()
     } catch (err) {
       setError(getApiErrorMessage(err))

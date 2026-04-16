@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
-import { Routes, Route, useMatch, useParams } from 'react-router-dom'
+import { Routes, Route, useMatch, useParams, useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { Plus, Search } from 'lucide-react'
 import { cn } from '@/shared/utils/cn'
+import { apiClient } from '@/lib/api-client'
 import { useInventoryItems } from '../hooks/use-inventory-items'
 import { useInventoryStore, PAGE_SIZE_OPTIONS } from '../store/inventory-store'
 import type { PageSize } from '../store/inventory-store'
@@ -23,6 +25,7 @@ function InventoryItemDetailRoute() {
 }
 
 export function InventoryPage() {
+  const navigate = useNavigate()
   const {
     searchQuery,
     supplierFilter,
@@ -30,6 +33,7 @@ export function InventoryPage() {
     page,
     pageSize,
     setSearchQuery,
+    setSupplierFilter,
     setLowStockOnly,
     setPage,
     setPageSize,
@@ -38,6 +42,18 @@ export function InventoryPage() {
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [inputValue, setInputValue] = useState(searchQuery)
   const debouncedQuery = useDebounce(inputValue, 300)
+
+  const { data: suppliersData } = useQuery({
+    queryKey: ['suppliers', 'active-compact'],
+    queryFn: async () => {
+      const { data } = await apiClient.get<{ items: { id: string; name: string }[] }>(
+        '/api/v1/suppliers',
+        { params: { is_active: true, limit: 200 } },
+      )
+      return data
+    },
+  })
+  const supplierOptions = suppliersData?.items ?? []
 
   useEffect(() => {
     setSearchQuery(debouncedQuery)
@@ -94,6 +110,20 @@ export function InventoryPage() {
                 className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-gray-50"
               />
             </div>
+            {supplierOptions.length > 0 && (
+              <select
+                value={supplierFilter ?? ''}
+                onChange={(e) => setSupplierFilter(e.target.value || null)}
+                className="border border-gray-200 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-gray-50 text-gray-600 shrink-0"
+              >
+                <option value="">Todos los proveedores</option>
+                {supplierOptions.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            )}
             <label className="flex items-center gap-2 cursor-pointer shrink-0">
               <input
                 type="checkbox"
@@ -176,7 +206,13 @@ export function InventoryPage() {
       </div>
 
       {showCreateForm && (
-        <InventoryItemForm onClose={() => setShowCreateForm(false)} />
+        <InventoryItemForm
+          onClose={() => setShowCreateForm(false)}
+          onCreated={(id) => {
+            setShowCreateForm(false)
+            navigate(`/inventario/${id}`)
+          }}
+        />
       )}
     </div>
   )
