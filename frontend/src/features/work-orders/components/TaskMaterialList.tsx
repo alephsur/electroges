@@ -197,15 +197,15 @@ function AddMaterialInlineForm({ workOrderId, taskId, onClose }: AddMaterialInli
                 onClick={() => {
                   setSelectedItemId(item.id)
                   setSelectedItemUnit(item.unit)
-                  setSelectedItemCost(String(Number(item.unit_cost_avg || item.unit_cost)))
-                  setUnitCost(String(Number(item.unit_cost_avg || item.unit_cost)))
+                  setSelectedItemCost(String(Number(item.unit_cost_avg || 0)))
+                  setUnitCost(String(Number(item.unit_cost_avg || 0)))
                   setItemSearch(item.name)
                 }}
                 className="block w-full px-3 py-1.5 text-left text-sm text-gray-700 hover:bg-gray-50"
               >
                 <span className="font-medium">{item.name}</span>
                 <span className="ml-2 text-xs text-gray-400">
-                  {item.unit} · {fmtCost(Number(item.unit_cost_avg || item.unit_cost))} €/ud
+                  {item.unit} · {fmtCost(Number(item.unit_cost_avg || 0))} €/ud
                 </span>
               </button>
             ))}

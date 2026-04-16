@@ -98,14 +98,14 @@ function LineRow({ line, supplierItems, onChange, onRemove }: LineRowProps) {
                     selectedItemId: item.id,
                     itemSearch: item.name,
                     description: item.name,
-                    unitCost: String(Number(item.unit_cost_avg || item.unit_cost)),
+                    unitCost: String(Number(item.unit_cost_avg || 0)),
                   })
                 }
                 className="flex w-full items-baseline justify-between px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
               >
                 <span className="font-medium">{item.name}</span>
                 <span className="ml-3 shrink-0 text-xs text-gray-400">
-                  {item.unit} · {fmt(Number(item.unit_cost_avg || item.unit_cost))} €/ud
+                  {item.unit} · {fmt(Number(item.unit_cost_avg || 0))} €/ud
                 </span>
               </button>
             ))}

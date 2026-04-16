@@ -164,7 +164,7 @@ function AddLineForm({ budgetId, onClose }: AddLineFormProps) {
       setDescription(item.name)
       setUnit(item.unit)
       setUnitPrice(String(item.unit_price))
-      setUnitCost(String(Number(item.unit_cost_avg || item.unit_cost || 0)))
+      setUnitCost(String(Number(item.unit_cost_avg || 0)))
     } else {
       setDescription('')
       setUnit('')

@@ -97,7 +97,7 @@ export function InventoryItemPicker({
           <Package size={14} className="shrink-0 text-blue-500" />
           <span className="truncate font-medium text-blue-800">{value.name}</span>
           <span className="shrink-0 text-xs text-blue-500">
-            {value.unit} · {fmt(Number(value.unit_cost_avg || value.unit_cost || 0))} €/ud
+            {value.unit} · {fmt(Number(value.unit_cost_avg || 0))} €/ud
           </span>
           {value.low_stock_alert && (
             <AlertTriangle size={12} className="shrink-0 text-amber-500" aria-label="Stock bajo mínimo" />

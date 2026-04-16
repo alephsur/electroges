@@ -50,7 +50,7 @@ export function SiteVisitMaterialForm({
     if (item) {
       setValue('description', item.name)
       setValue('unit', item.unit)
-      setValue('unit_cost', Number(item.unit_cost_avg ?? item.unit_cost ?? 0) || null)
+      setValue('unit_cost', Number(item.unit_cost_avg ?? 0) || null)
     }
   }
 

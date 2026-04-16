@@ -280,7 +280,6 @@ function MaterialesTab({
               <tr className="border-b border-gray-100 text-left text-xs font-medium text-gray-400 uppercase tracking-wide">
                 <th className="px-4 py-3">Nombre</th>
                 <th className="px-4 py-3">Unidad</th>
-                <th className="px-4 py-3 text-right">Coste proveedor</th>
                 <th className="px-4 py-3 text-right">P. coste medio (PMP)</th>
                 <th className="px-4 py-3 text-right">Precio venta</th>
                 <th className="px-4 py-3 text-right">Stock</th>
@@ -294,10 +293,7 @@ function MaterialesTab({
                   <td className="px-4 py-3 font-medium text-gray-900">{item.name}</td>
                   <td className="px-4 py-3 text-gray-500">{item.unit}</td>
                   <td className="px-4 py-3 text-right text-gray-700">
-                    {Number(item.unit_cost).toFixed(4)} €
-                  </td>
-                  <td className="px-4 py-3 text-right text-gray-500 text-xs font-mono">
-                    {Number((item as any).unit_cost_avg ?? 0).toFixed(4)} €
+                    {Number(item.unit_cost_avg).toFixed(4)} €
                   </td>
                   <td className="px-4 py-3 text-right text-gray-700">
                     {Number(item.unit_price).toFixed(2)} €

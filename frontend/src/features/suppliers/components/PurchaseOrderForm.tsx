@@ -77,7 +77,7 @@ export function PurchaseOrderForm({ supplierId, onClose }: PurchaseOrderFormProp
     setValue(`lines.${idx}.inventory_item_id`, item.id);
     setValue(`lines.${idx}.inventory_item_name`, item.name);
     setValue(`lines.${idx}.description`, item.description ?? item.name);
-    setValue(`lines.${idx}.unit_cost`, Number(item.unit_cost));
+    setValue(`lines.${idx}.unit_cost`, Number(item.unit_cost_avg));
     setPickerLineIdx(null);
   };
 
@@ -402,7 +402,7 @@ function InventoryPickerModal({
                   </div>
                   <div className="shrink-0 text-right">
                     <div className="text-sm font-medium text-gray-700">
-                      {Number(item.unit_cost).toLocaleString("es-ES", {
+                      {Number(item.unit_cost_avg).toLocaleString("es-ES", {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,
                       })}{" "}

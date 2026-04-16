@@ -39,7 +39,7 @@ function AddMaterialForm({ workOrderId, tasks, onClose }: AddMaterialFormProps) 
   const handleItemChange = (item: InventoryItem | null) => {
     setSelectedItem(item)
     if (item) {
-      setUnitCost(String(Number(item.unit_cost_avg || item.unit_cost || 0)))
+      setUnitCost(String(Number(item.unit_cost_avg || 0)))
     } else {
       setUnitCost('')
     }
