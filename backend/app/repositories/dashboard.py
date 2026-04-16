@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import heapq
 import uuid
 from collections import defaultdict
@@ -27,6 +28,7 @@ from app.schemas.dashboard import (
     PendingBudgetItem,
     PurchaseOrderStats,
     RecentActivityItem,
+    RecentActivityPage,
     SiteVisitStats,
     TopCustomer,
     WorkOrderStats,
@@ -264,6 +266,148 @@ class DashboardRepository:
 
         items.sort(key=lambda x: x.date, reverse=True)
         return items[:limit]
+
+    async def get_recent_activity_page(
+        self, page: int, page_size: int
+    ) -> RecentActivityPage:
+        """Return a paginated slice of the global recent activity feed."""
+        offset = (page - 1) * page_size
+        # Load enough items from each source to guarantee we can cover offset + page_size
+        per_source = offset + page_size
+
+        inv_stmt = self._tf(
+            Invoice,
+            select(Invoice)
+            .options(selectinload(Invoice.customer))
+            .where(Invoice.is_rectification.is_(False))
+            .order_by(Invoice.created_at.desc())
+            .limit(per_source),
+        )
+        wo_stmt = self._tf(
+            WorkOrder,
+            select(WorkOrder)
+            .options(selectinload(WorkOrder.customer))
+            .order_by(WorkOrder.created_at.desc())
+            .limit(per_source),
+        )
+        b_stmt = self._tf(
+            Budget,
+            select(Budget)
+            .options(selectinload(Budget.customer))
+            .where(Budget.is_latest_version.is_(True))
+            .order_by(Budget.created_at.desc())
+            .limit(per_source),
+        )
+        sv_stmt = self._tf(
+            SiteVisit,
+            select(SiteVisit)
+            .options(selectinload(SiteVisit.customer))
+            .order_by(SiteVisit.created_at.desc())
+            .limit(per_source),
+        )
+        po_stmt = self._tf(
+            PurchaseOrder,
+            select(PurchaseOrder)
+            .options(selectinload(PurchaseOrder.supplier))
+            .order_by(PurchaseOrder.created_at.desc())
+            .limit(per_source),
+        )
+
+        invoices_res, wo_res, budgets_res, sv_res, po_res = await asyncio.gather(
+            self.session.execute(inv_stmt),
+            self.session.execute(wo_stmt),
+            self.session.execute(b_stmt),
+            self.session.execute(sv_stmt),
+            self.session.execute(po_stmt),
+        )
+        total = await self._count_recent_activity_total()
+
+        items: list[RecentActivityItem] = []
+
+        for inv in invoices_res.scalars().all():
+            items.append(RecentActivityItem(
+                id=str(inv.id),
+                entity_type="invoice",
+                entity_number=inv.invoice_number,
+                customer_name=inv.customer.name if inv.customer else None,
+                status=inv.status.value if hasattr(inv.status, "value") else str(inv.status),
+                date=inv.created_at,
+            ))
+
+        for wo in wo_res.scalars().all():
+            items.append(RecentActivityItem(
+                id=str(wo.id),
+                entity_type="work_order",
+                entity_number=wo.work_order_number,
+                customer_name=wo.customer.name if wo.customer else None,
+                status=wo.status.value if hasattr(wo.status, "value") else str(wo.status),
+                date=wo.created_at,
+            ))
+
+        for b in budgets_res.scalars().all():
+            items.append(RecentActivityItem(
+                id=str(b.id),
+                entity_type="budget",
+                entity_number=b.budget_number,
+                customer_name=b.customer.name if b.customer else None,
+                status=b.status.value if hasattr(b.status, "value") else str(b.status),
+                date=b.created_at,
+            ))
+
+        for sv in sv_res.scalars().all():
+            items.append(RecentActivityItem(
+                id=str(sv.id),
+                entity_type="site_visit",
+                entity_number=f"Visita {sv.created_at.strftime('%d/%m/%Y')}",
+                customer_name=sv.customer.name if sv.customer else None,
+                status=sv.status.value if hasattr(sv.status, "value") else str(sv.status),
+                date=sv.created_at,
+            ))
+
+        for po in po_res.scalars().all():
+            items.append(RecentActivityItem(
+                id=str(po.id),
+                entity_type="purchase_order",
+                entity_number=po.order_number,
+                customer_name=po.supplier.name if po.supplier else None,
+                status=po.status,
+                date=po.created_at,
+            ))
+
+        items.sort(key=lambda x: x.date, reverse=True)
+        page_items = items[offset : offset + page_size]
+        total_pages = max(1, (total + page_size - 1) // page_size)
+
+        return RecentActivityPage(
+            items=page_items,
+            total=total,
+            page=page,
+            page_size=page_size,
+            total_pages=total_pages,
+        )
+
+    async def _count_recent_activity_total(self) -> int:
+        """Count total items across all entity sources for the activity feed."""
+        inv_count_stmt = self._tf(
+            Invoice,
+            select(func.count()).select_from(Invoice).where(Invoice.is_rectification.is_(False)),
+        )
+        wo_count_stmt = self._tf(WorkOrder, select(func.count()).select_from(WorkOrder))
+        b_count_stmt = self._tf(
+            Budget,
+            select(func.count()).select_from(Budget).where(Budget.is_latest_version.is_(True)),
+        )
+        sv_count_stmt = self._tf(SiteVisit, select(func.count()).select_from(SiteVisit))
+        po_count_stmt = self._tf(PurchaseOrder, select(func.count()).select_from(PurchaseOrder))
+
+        results = await asyncio.gather(
+            self.session.execute(inv_count_stmt),
+            self.session.execute(wo_count_stmt),
+            self.session.execute(b_count_stmt),
+            self.session.execute(sv_count_stmt),
+            self.session.execute(po_count_stmt),
+        )
+        return sum(r.scalar() or 0 for r in results)
 
     async def _count_low_stock_items(self) -> int:
         """Count inventory items where stock_current <= stock_min."""

@@ -9,7 +9,7 @@ import {
   CheckCircle,
   ShoppingCart,
 } from 'lucide-react'
-import { useDashboardSummary } from '../hooks/use-dashboard'
+import { useDashboardSummary, useRecentActivity } from '../hooks/use-dashboard'
 import { DateRangeFilter } from './DateRangeFilter'
 import { KpiCard } from './KpiCard'
 import { StatusBreakdown } from './StatusBreakdown'
@@ -31,8 +31,10 @@ export function DashboardPage() {
     from: today.startOf('year').format('YYYY-MM-DD'),
     to: today.format('YYYY-MM-DD'),
   })
+  const [activityPage, setActivityPage] = useState(1)
 
   const { data, isLoading, isError } = useDashboardSummary(dateRange.from, dateRange.to)
+  const { data: activityData, isFetching: activityFetching } = useRecentActivity(activityPage)
 
   return (
     <div className="h-full overflow-y-auto bg-gray-50">
@@ -239,9 +241,14 @@ export function DashboardPage() {
                 <div className="px-4 py-3 border-b border-gray-100">
                   <h3 className="text-sm font-semibold text-gray-700">Actividad reciente</h3>
                 </div>
-                <div className="max-h-72 overflow-y-auto">
-                  <RecentActivityFeed items={data.recent_activity} />
-                </div>
+                <RecentActivityFeed
+                  items={activityData?.items ?? []}
+                  page={activityData?.page ?? activityPage}
+                  totalPages={activityData?.total_pages ?? 1}
+                  total={activityData?.total ?? 0}
+                  onPageChange={setActivityPage}
+                  isLoading={activityFetching}
+                />
               </div>
             </div>
           </>

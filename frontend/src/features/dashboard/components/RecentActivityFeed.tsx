@@ -53,10 +53,15 @@ const STATUS_LABELS: Record<string, string> = {
 
 interface Props {
   items: RecentActivityItem[]
+  page: number
+  totalPages: number
+  total: number
+  onPageChange: (page: number) => void
+  isLoading?: boolean
 }
 
-export function RecentActivityFeed({ items }: Props) {
-  if (items.length === 0) {
+export function RecentActivityFeed({ items, page, totalPages, total, onPageChange, isLoading }: Props) {
+  if (!isLoading && items.length === 0) {
     return (
       <div className="flex items-center justify-center py-10 text-xs text-gray-400">
         Sin actividad reciente
@@ -65,38 +70,67 @@ export function RecentActivityFeed({ items }: Props) {
   }
 
   return (
-    <div className="divide-y divide-gray-50">
-      {items.map((item) => (
-        <div key={`${item.entity_type}-${item.id}`} className="flex items-center gap-3 px-4 py-2.5">
-          {/* Type badge */}
-          <span
-            className={`shrink-0 rounded-md px-1.5 py-0.5 text-xs font-semibold ${ENTITY_COLORS[item.entity_type]}`}
-          >
-            {ENTITY_LABELS[item.entity_type]}
-          </span>
+    <div className="flex flex-col">
+      {/* Items list */}
+      <div className={`divide-y divide-gray-50 ${isLoading ? 'opacity-50' : ''}`}>
+        {items.map((item) => (
+          <div key={`${item.entity_type}-${item.id}`} className="flex items-center gap-3 px-4 py-2.5">
+            {/* Type badge */}
+            <span
+              className={`shrink-0 rounded-md px-1.5 py-0.5 text-xs font-semibold ${ENTITY_COLORS[item.entity_type]}`}
+            >
+              {ENTITY_LABELS[item.entity_type]}
+            </span>
 
-          {/* Number + customer */}
-          <div className="flex-1 min-w-0">
-            <span className="text-xs font-medium text-gray-800">{item.entity_number}</span>
-            {item.customer_name && (
-              <span className="text-xs text-gray-400 ml-1.5">· {item.customer_name}</span>
-            )}
-          </div>
+            {/* Number + customer */}
+            <div className="flex-1 min-w-0">
+              <span className="text-xs font-medium text-gray-800">{item.entity_number}</span>
+              {item.customer_name && (
+                <span className="text-xs text-gray-400 ml-1.5">· {item.customer_name}</span>
+              )}
+            </div>
 
-          {/* Status dot + label */}
-          <div className="flex items-center gap-1 shrink-0">
-            <span className={`w-1.5 h-1.5 rounded-full ${ENTITY_DOT[item.entity_type]}`} />
-            <span className="text-xs text-gray-500">
-              {STATUS_LABELS[item.status] ?? item.status}
+            {/* Status dot + label */}
+            <div className="flex items-center gap-1 shrink-0">
+              <span className={`w-1.5 h-1.5 rounded-full ${ENTITY_DOT[item.entity_type]}`} />
+              <span className="text-xs text-gray-500">
+                {STATUS_LABELS[item.status] ?? item.status}
+              </span>
+            </div>
+
+            {/* Relative time */}
+            <span className="text-xs text-gray-300 shrink-0 w-16 text-right">
+              {dayjs(item.date).fromNow(true)}
             </span>
           </div>
+        ))}
+      </div>
 
-          {/* Relative time */}
-          <span className="text-xs text-gray-300 shrink-0 w-16 text-right">
-            {dayjs(item.date).fromNow(true)}
-          </span>
+      {/* Pagination controls */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between px-4 py-2 border-t border-gray-50">
+          <span className="text-xs text-gray-400">{total} registros</span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => onPageChange(page - 1)}
+              disabled={page <= 1 || isLoading}
+              className="px-2 py-0.5 text-xs rounded border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              ‹
+            </button>
+            <span className="text-xs text-gray-500">
+              {page} / {totalPages}
+            </span>
+            <button
+              onClick={() => onPageChange(page + 1)}
+              disabled={page >= totalPages || isLoading}
+              className="px-2 py-0.5 text-xs rounded border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              ›
+            </button>
+          </div>
         </div>
-      ))}
+      )}
     </div>
   )
 }

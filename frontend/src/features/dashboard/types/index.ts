@@ -106,6 +106,14 @@ export interface RecentActivityItem {
   date: string
 }
 
+export interface RecentActivityPage {
+  items: RecentActivityItem[]
+  total: number
+  page: number
+  page_size: number
+  total_pages: number
+}
+
 export interface DateRange {
   from: string
   to: string

@@ -99,6 +99,14 @@ class RecentActivityItem(BaseModel):
     date: datetime
 
 
+class RecentActivityPage(BaseModel):
+    items: list[RecentActivityItem]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+
+
 class DashboardSummary(BaseModel):
     date_from: date
     date_to: date
