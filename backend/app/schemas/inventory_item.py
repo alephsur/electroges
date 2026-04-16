@@ -11,11 +11,9 @@ class InventoryItemCreate(BaseModel):
     name: str = Field(..., max_length=255)
     description: str | None = None
     unit: str = Field(default="ud", max_length=20)
-    unit_cost: Decimal = Field(default=Decimal("0"), ge=0)
     unit_price: Decimal = Field(default=Decimal("0"), ge=0)
     stock_current: Decimal = Field(default=Decimal("0"), ge=0)
     stock_min: Decimal = Field(default=Decimal("0"), ge=0)
-    supplier_id: UUID | None = None
 
 
 class InventoryItemCreateWithSupplier(BaseModel):
@@ -38,11 +36,11 @@ class InventoryItemUpdate(BaseModel):
     name: str | None = Field(default=None, max_length=255)
     description: str | None = None
     unit: str | None = Field(default=None, max_length=20)
-    unit_cost: Decimal | None = Field(default=None, ge=0)
     unit_price: Decimal | None = Field(default=None, ge=0)
     stock_min: Decimal | None = Field(default=None, ge=0)
     is_active: bool | None = None
     # stock_current is intentionally absent — stock is modified via movements only
+    # unit_cost is intentionally absent — cost is managed via SupplierItem records
 
 
 class InventoryItemBrief(BaseModel):
@@ -55,7 +53,7 @@ class InventoryItemBrief(BaseModel):
     name: str
     description: str | None
     unit: str
-    unit_cost: float
+    unit_cost_avg: float
     unit_price: float
     stock_current: float
     stock_min: float
@@ -69,12 +67,10 @@ class InventoryItemResponse(BaseModel):
     name: str
     description: str | None
     unit: str
-    unit_cost: float
     unit_cost_avg: float = 0.0
     unit_price: float
     stock_current: float
     stock_min: float
-    supplier_id: UUID | None
     is_active: bool
     created_at: datetime
     updated_at: datetime

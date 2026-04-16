@@ -38,12 +38,10 @@ class TestInventoryItemCreate:
     def test_defaults(self):
         data = InventoryItemCreate(name="Cable 2.5mm")
         assert data.unit == "ud"
-        assert data.unit_cost == Decimal("0")
         assert data.unit_price == Decimal("0")
         assert data.stock_current == Decimal("0")
         assert data.stock_min == Decimal("0")
         assert data.description is None
-        assert data.supplier_id is None
 
     def test_name_is_required(self):
         with pytest.raises(ValidationError):
@@ -65,10 +63,6 @@ class TestInventoryItemCreate:
         data = InventoryItemCreate(name="Cable", unit="x" * 20)
         assert len(data.unit) == 20
 
-    def test_unit_cost_cannot_be_negative(self):
-        with pytest.raises(ValidationError):
-            InventoryItemCreate(name="Cable", unit_cost=Decimal("-1"))
-
     def test_unit_price_cannot_be_negative(self):
         with pytest.raises(ValidationError):
             InventoryItemCreate(name="Cable", unit_price=Decimal("-0.01"))
@@ -84,29 +78,24 @@ class TestInventoryItemCreate:
     def test_zero_values_allowed(self):
         data = InventoryItemCreate(
             name="Cable",
-            unit_cost=Decimal("0"),
             unit_price=Decimal("0"),
             stock_current=Decimal("0"),
             stock_min=Decimal("0"),
         )
-        assert data.unit_cost == Decimal("0")
+        assert data.unit_price == Decimal("0")
 
     def test_all_fields(self):
-        supplier_id = uuid.uuid4()
         data = InventoryItemCreate(
             name="Cable 2.5mm²",
             description="Cable de cobre",
             unit="m",
-            unit_cost=Decimal("1.50"),
             unit_price=Decimal("2.20"),
             stock_current=Decimal("100"),
             stock_min=Decimal("20"),
-            supplier_id=supplier_id,
         )
         assert data.name == "Cable 2.5mm²"
         assert data.unit == "m"
-        assert data.unit_cost == Decimal("1.50")
-        assert data.supplier_id == supplier_id
+        assert data.unit_price == Decimal("2.20")
 
 
 # ── InventoryItemCreateWithSupplier ───────────────────────────────────────────
@@ -180,10 +169,6 @@ class TestInventoryItemUpdate:
         with pytest.raises(ValidationError):
             InventoryItemUpdate(unit="x" * 21)
 
-    def test_unit_cost_cannot_be_negative(self):
-        with pytest.raises(ValidationError):
-            InventoryItemUpdate(unit_cost=Decimal("-1"))
-
     def test_unit_price_cannot_be_negative(self):
         with pytest.raises(ValidationError):
             InventoryItemUpdate(unit_price=Decimal("-0.01"))
@@ -215,7 +200,7 @@ class TestInventoryItemBrief:
             name="Cable 2.5mm",
             description=None,
             unit="m",
-            unit_cost=Decimal("1.50"),
+            unit_cost_avg=Decimal("1.50"),
             unit_price=Decimal("2.20"),
             stock_current=Decimal("100"),
             stock_min=Decimal("20"),
@@ -252,12 +237,10 @@ class TestInventoryItemResponse:
             name="Cable 2.5mm",
             description=None,
             unit="m",
-            unit_cost=Decimal("1.50"),
             unit_cost_avg=Decimal("1.45"),
             unit_price=Decimal("2.20"),
             stock_current=Decimal("100"),
             stock_min=Decimal("20"),
-            supplier_id=None,
             is_active=True,
             created_at=now,
             updated_at=now,
@@ -301,11 +284,6 @@ class TestInventoryItemResponse:
             low_stock_alert=False,
         )
         assert response.low_stock_alert is False
-
-    def test_with_supplier_id(self):
-        supplier_id = uuid.uuid4()
-        response = self._make_response(supplier_id=supplier_id)
-        assert response.supplier_id == supplier_id
 
     def test_unit_cost_avg_field(self):
         response = self._make_response(unit_cost_avg=Decimal("1.6789"))

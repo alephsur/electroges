@@ -3,6 +3,7 @@
 import logging
 import uuid
 from datetime import datetime
+from decimal import Decimal
 from pathlib import Path
 
 from fastapi import HTTPException, UploadFile, status
@@ -245,7 +246,7 @@ class SiteVisitService:
             if not unit:
                 unit = item.unit
             if not unit_cost:
-                unit_cost = item.unit_cost_avg or item.unit_cost
+                unit_cost = item.unit_cost_avg or Decimal("0")
 
         material_data = data.model_dump()
         material_data["unit"] = unit

@@ -11,7 +11,6 @@ from app.core.database import Base
 from app.models.base import TimestampMixin, UUIDMixin
 
 if TYPE_CHECKING:
-    from app.models.inventory_item import InventoryItem
     from app.models.purchase_order import PurchaseOrder
     from app.models.supplier_item import SupplierItem
 
@@ -40,9 +39,6 @@ class Supplier(UUIDMixin, TimestampMixin, Base):
         Boolean, nullable=False, default=True, server_default="true"
     )
 
-    inventory_items: Mapped[list[InventoryItem]] = relationship(
-        "InventoryItem", back_populates="supplier"
-    )
     purchase_orders: Mapped[list[PurchaseOrder]] = relationship(
         "PurchaseOrder", back_populates="supplier", order_by="PurchaseOrder.order_date.desc()"
     )

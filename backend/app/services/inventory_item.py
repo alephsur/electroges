@@ -43,12 +43,10 @@ def _build_item_response(item: InventoryItem) -> InventoryItemResponse:
         name=item.name,
         description=item.description,
         unit=item.unit,
-        unit_cost=item.unit_cost,
         unit_cost_avg=item.unit_cost_avg,
         unit_price=item.unit_price,
         stock_current=item.stock_current,
         stock_min=item.stock_min,
-        supplier_id=item.supplier_id,
         is_active=item.is_active,
         created_at=item.created_at,
         updated_at=item.updated_at,
@@ -99,28 +97,25 @@ class InventoryItemService:
             name=data.name,
             description=data.description,
             unit=data.unit,
-            unit_cost=data.unit_cost,
             unit_price=data.unit_price,
             unit_cost_avg=Decimal("0"),
             stock_current=data.stock_current,
             stock_min=data.stock_min,
-            supplier_id=supplier_id,
             is_active=True,
             tenant_id=self._tenant_id,
         )
         created = await self.repo.create(item)
 
-        # Also create a SupplierItem for the multi-supplier system
-        if data.unit_cost > 0:
-            si = SupplierItem(
-                supplier_id=supplier_id,
-                inventory_item_id=created.id,
-                unit_cost=data.unit_cost,
-                is_preferred=True,
-                is_active=True,
-            )
-            self._session.add(si)
-            await self._session.flush()
+        # Link item to this supplier via the junction table
+        si = SupplierItem(
+            supplier_id=supplier_id,
+            inventory_item_id=created.id,
+            unit_cost=Decimal("0"),
+            is_preferred=True,
+            is_active=True,
+        )
+        self._session.add(si)
+        await self._session.flush()
 
         await self._session.commit()
         logger.info(

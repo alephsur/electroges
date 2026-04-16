@@ -3,7 +3,7 @@
 import uuid
 from decimal import Decimal
 
-from sqlalchemy import exists, func, or_, select, update
+from sqlalchemy import exists, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -25,19 +25,13 @@ class InventoryItemRepository(BaseRepository[InventoryItem]):
         skip: int = 0,
         limit: int = 100,
     ) -> tuple[list[InventoryItem], int]:
-        """Items linked to a supplier either via the legacy supplier_id FK
-        or via the SupplierItem junction table (active entries only)."""
+        """Items linked to a supplier via the SupplierItem junction table (active entries only)."""
         linked_via_junction = exists().where(
             (SupplierItem.inventory_item_id == InventoryItem.id)
             & (SupplierItem.supplier_id == supplier_id)
             & (SupplierItem.is_active.is_(True))
         )
-        query = select(InventoryItem).where(
-            or_(
-                InventoryItem.supplier_id == supplier_id,
-                linked_via_junction,
-            )
-        )
+        query = select(InventoryItem).where(linked_via_junction)
         if self.tenant_id is not None:
             query = query.where(InventoryItem.tenant_id == self.tenant_id)
         if is_active is not None:
@@ -79,12 +73,7 @@ class InventoryItemRepository(BaseRepository[InventoryItem]):
                 & (SupplierItem.supplier_id == supplier_id)
                 & (SupplierItem.is_active.is_(True))
             )
-            query = query.where(
-                or_(
-                    InventoryItem.supplier_id == supplier_id,
-                    linked_via_junction,
-                )
-            )
+            query = query.where(linked_via_junction)
         if is_active is not None:
             query = query.where(InventoryItem.is_active == is_active)
 

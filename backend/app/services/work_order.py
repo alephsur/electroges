@@ -214,7 +214,7 @@ class WorkOrderService:
             if not item:
                 continue
 
-            unit_cost = item.unit_cost_avg if item.unit_cost_avg > 0 else item.unit_cost
+            unit_cost = item.unit_cost_avg if item.unit_cost_avg > 0 else Decimal("0")
 
             tm = TaskMaterial(
                 task_id=materials_task.id,
@@ -493,7 +493,7 @@ class WorkOrderService:
         unit_cost = (
             data.unit_cost
             if data.unit_cost is not None
-            else (item.unit_cost_avg if item.unit_cost_avg > 0 else item.unit_cost)
+            else (item.unit_cost_avg if item.unit_cost_avg > 0 else Decimal("0"))
         )
 
         tm = TaskMaterial(

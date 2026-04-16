@@ -78,11 +78,9 @@ class InventoryService:
             description=data.description,
             unit=data.unit,
             unit_price=data.unit_price,
-            unit_cost=data.unit_cost,
             unit_cost_avg=Decimal("0"),
             stock_current=Decimal("0"),
             stock_min=data.stock_min,
-            supplier_id=data.supplier_id,
             is_active=data.is_active,
             tenant_id=self._tenant_id,
         )
@@ -139,12 +137,10 @@ class InventoryService:
             name=item.name,
             description=item.description,
             unit=item.unit,
-            unit_cost=item.unit_cost,
             unit_cost_avg=item.unit_cost_avg,
             unit_price=item.unit_price,
             stock_current=item.stock_current,
             stock_min=item.stock_min,
-            supplier_id=item.supplier_id,
             is_active=item.is_active,
             created_at=item.created_at,
             updated_at=item.updated_at,
@@ -220,12 +216,6 @@ class InventoryService:
 
         if setting_preferred is True:
             await self._supplier_item_repo.set_preferred(supplier_item_id)
-            # Sync unit_cost on the inventory item to the preferred supplier's price
-            item = await self._item_repo.get_by_id(item_id)
-            if item:
-                # Use the updated unit_cost if it was part of this update, else current
-                new_cost = data.unit_cost if data.unit_cost is not None else si.unit_cost
-                await self._item_repo.update(item, {"unit_cost": new_cost})
 
         await self._session.commit()
         logger.info("supplier_item.updated id=%s", supplier_item_id)
@@ -269,11 +259,6 @@ class InventoryService:
             )
 
         await self._supplier_item_repo.set_preferred(supplier_item_id)
-
-        # Sync unit_cost on inventory item to the preferred supplier's price
-        item = await self._item_repo.get_by_id(item_id)
-        if item:
-            await self._item_repo.update(item, {"unit_cost": si.unit_cost})
 
         await self._session.commit()
         logger.info(
@@ -377,12 +362,10 @@ class InventoryService:
             name=item.name,
             description=item.description,
             unit=item.unit,
-            unit_cost=item.unit_cost,
             unit_cost_avg=item.unit_cost_avg,
             unit_price=item.unit_price,
             stock_current=item.stock_current,
             stock_min=item.stock_min,
-            supplier_id=item.supplier_id,
             is_active=item.is_active,
             created_at=item.created_at,
             updated_at=item.updated_at,

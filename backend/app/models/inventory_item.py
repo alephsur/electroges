@@ -13,7 +13,6 @@ from app.models.base import TimestampMixin, UUIDMixin
 
 if TYPE_CHECKING:
     from app.models.stock_movement import StockMovement
-    from app.models.supplier import Supplier
     from app.models.supplier_item import SupplierItem
 
 
@@ -29,11 +28,6 @@ class InventoryItem(UUIDMixin, TimestampMixin, Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     unit: Mapped[str] = mapped_column(String(20), nullable=False, default="ud", server_default="ud")
-    # TODO: deprecated. Use supplier_items relationship. Remove in Phase 2.
-    # Kept for FK compatibility with legacy code; logic now goes through SupplierItem.
-    unit_cost: Mapped[Decimal] = mapped_column(
-        Numeric(10, 4), nullable=False, default=Decimal("0"), server_default="0"
-    )
     unit_price: Mapped[Decimal] = mapped_column(
         Numeric(10, 4), nullable=False, default=Decimal("0"), server_default="0"
     )
@@ -52,15 +46,10 @@ class InventoryItem(UUIDMixin, TimestampMixin, Base):
     stock_reserved: Mapped[Decimal] = mapped_column(
         Numeric(10, 3), nullable=False, default=Decimal("0"), server_default="0"
     )
-    # TODO: deprecated. Use supplier_items relationship. Remove in Phase 2.
-    supplier_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("suppliers.id", ondelete="SET NULL"), nullable=True
-    )
     is_active: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default="true"
     )
 
-    supplier: Mapped[Supplier | None] = relationship("Supplier", back_populates="inventory_items")
     supplier_items: Mapped[list[SupplierItem]] = relationship(
         "SupplierItem", back_populates="inventory_item", cascade="all, delete-orphan"
     )

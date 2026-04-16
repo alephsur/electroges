@@ -32,7 +32,6 @@ export interface InventoryItem {
   name: string
   description: string | null
   unit: string
-  unit_cost: number
   unit_cost_avg: number
   unit_price: number
   stock_current: number
@@ -43,7 +42,6 @@ export interface InventoryItem {
   last_movement_at: string | null
   supplier_items: SupplierItem[]
   preferred_supplier: SupplierItem | null
-  supplier_id: string | null
   is_active: boolean
   created_at: string
   updated_at: string
@@ -81,7 +79,6 @@ export interface InventoryItemUpdatePayload {
   name?: string
   description?: string | null
   unit?: string
-  unit_cost?: number
   unit_price?: number
   stock_min?: number
   is_active?: boolean

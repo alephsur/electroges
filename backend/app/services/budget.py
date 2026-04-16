@@ -683,7 +683,7 @@ class BudgetService:
                 if not data.unit:
                     line_data["unit"] = item.unit
                 if data.unit_cost == Decimal("0.0"):
-                    line_data["unit_cost"] = item.unit_cost_avg or item.unit_cost
+                    line_data["unit_cost"] = item.unit_cost_avg or Decimal("0")
 
         line = BudgetLine(budget_id=budget_id, **line_data)
         return await self._line_repo.create(line)
