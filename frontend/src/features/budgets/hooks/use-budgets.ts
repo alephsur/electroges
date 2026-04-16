@@ -154,6 +154,18 @@ export function useCreateNewVersion() {
   })
 }
 
+export function useDeleteBudget() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await apiClient.delete(`/api/v1/budgets/${id}`)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: budgetKeys.lists() })
+    },
+  })
+}
+
 export function useAcceptBudget() {
   const queryClient = useQueryClient()
   return useMutation({

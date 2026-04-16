@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from 'react'
-import { X, Search, User } from 'lucide-react'
+import { X, Search, User, UserPlus, ChevronLeft } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { apiClient } from '@/lib/api-client'
 import type { CustomerListResponse, CustomerSummary } from '@/features/customers/types'
+import { useCreateCustomer } from '@/features/customers/hooks/use-customers'
 import { useCreateBudget } from '../hooks/use-budgets'
 
 interface BudgetFormProps {
@@ -14,16 +15,24 @@ interface BudgetFormProps {
 
 export function BudgetForm({ customerId, customerName, onClose }: BudgetFormProps) {
   const createBudget = useCreateBudget()
+  const createCustomer = useCreateCustomer()
   const navigate = useNavigate()
 
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerSummary | null>(null)
   const [searchQuery, setSearchQuery] = useState(customerName ?? '')
   const [showDropdown, setShowDropdown] = useState(false)
+  const [showQuickCreate, setShowQuickCreate] = useState(false)
   const [notes, setNotes] = useState('')
   const [clientNotes, setClientNotes] = useState('')
   const [discount, setDiscount] = useState('0')
   const [taxRate, setTaxRate] = useState('')
   const searchRef = useRef<HTMLDivElement>(null)
+
+  // Quick-create customer fields
+  const [quickName, setQuickName] = useState('')
+  const [quickPhone, setQuickPhone] = useState('')
+  const [quickEmail, setQuickEmail] = useState('')
+  const [quickTaxId, setQuickTaxId] = useState('')
 
   // If customerId was passed in as prop, skip the search UI
   const isPresetCustomer = !!customerId
@@ -82,6 +91,43 @@ export function BudgetForm({ customerId, customerName, onClose }: BudgetFormProp
     setSearchQuery('')
   }
 
+  const handleOpenQuickCreate = () => {
+    setQuickName(searchQuery)
+    setShowDropdown(false)
+    setShowQuickCreate(true)
+  }
+
+  const handleQuickCreate = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!quickName.trim()) return
+    createCustomer.mutate(
+      {
+        customer_type: 'individual',
+        name: quickName.trim(),
+        phone: quickPhone.trim() || null,
+        email: quickEmail.trim() || null,
+        tax_id: quickTaxId.trim() || null,
+      },
+      {
+        onSuccess: (newCustomer) => {
+          setSelectedCustomer({ id: newCustomer.id, name: newCustomer.name, tax_id: newCustomer.tax_id ?? null, phone: newCustomer.phone ?? null })
+          setSearchQuery(newCustomer.name)
+          setShowQuickCreate(false)
+        },
+      },
+    )
+  }
+
+  const handleCancelQuickCreate = () => {
+    setShowQuickCreate(false)
+    setQuickName('')
+    setQuickPhone('')
+    setQuickEmail('')
+    setQuickTaxId('')
+  }
+
+  const noResults = showDropdown && !selectedCustomer && searchQuery.length >= 1 && searchResults?.length === 0
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="w-full max-w-lg rounded-xl bg-white shadow-xl">
@@ -92,165 +138,263 @@ export function BudgetForm({ customerId, customerName, onClose }: BudgetFormProp
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="px-6 py-4 space-y-4">
-          {/* Customer selector */}
-          {isPresetCustomer ? (
-            <div className="rounded-md bg-blue-50 px-3 py-2 text-sm text-blue-700 flex items-center gap-2">
-              <User size={14} />
-              Cliente: <strong>{customerName}</strong>
+        {/* Quick-create customer panel */}
+        {showQuickCreate ? (
+          <form onSubmit={handleQuickCreate} className="px-6 py-4 space-y-4">
+            <div className="flex items-center gap-2 mb-1">
+              <button
+                type="button"
+                onClick={handleCancelQuickCreate}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <span className="text-sm font-medium text-gray-700">Nuevo cliente</span>
             </div>
-          ) : (
+
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">
-                Cliente
-                <span className="ml-1 text-xs font-normal text-gray-400">(opcional)</span>
+                Nombre <span className="text-red-500">*</span>
               </label>
-              <div ref={searchRef} className="relative">
-                {selectedCustomer ? (
-                  <div className="flex items-center justify-between rounded-md border border-blue-400 bg-blue-50 px-3 py-2 text-sm">
-                    <div className="flex items-center gap-2">
-                      <User size={14} className="text-blue-500" />
-                      <span className="font-medium text-blue-800">{selectedCustomer.name}</span>
-                      {selectedCustomer.tax_id && (
-                        <span className="text-xs text-blue-500">{selectedCustomer.tax_id}</span>
-                      )}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleClearCustomer}
-                      className="text-blue-400 hover:text-blue-600"
-                    >
-                      <X size={14} />
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                    <Search
-                      size={14}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                    />
-                    <input
-                      value={searchQuery}
-                      onChange={(e) => {
-                        setSearchQuery(e.target.value)
-                        setShowDropdown(true)
-                      }}
-                      onFocus={() => setShowDropdown(true)}
-                      placeholder="Buscar cliente por nombre, NIF..."
-                      className="w-full rounded-md border border-gray-300 py-2 pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </>
-                )}
+              <input
+                value={quickName}
+                onChange={(e) => setQuickName(e.target.value)}
+                required
+                autoFocus
+                placeholder="Nombre y apellidos o razón social"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
 
-                {showDropdown && !selectedCustomer && searchResults && searchResults.length > 0 && (
-                  <div className="absolute left-0 right-0 top-full z-10 mt-1 max-h-52 overflow-y-auto rounded-lg border border-gray-100 bg-white shadow-lg">
-                    {searchResults.map((c) => (
-                      <button
-                        key={c.id}
-                        type="button"
-                        onClick={() => handleSelectCustomer(c)}
-                        className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm hover:bg-gray-50"
-                      >
-                        <User size={14} className="shrink-0 text-gray-400" />
-                        <div className="min-w-0">
-                          <div className="font-medium text-gray-800 truncate">{c.name}</div>
-                          {(c.tax_id || c.phone) && (
-                            <div className="text-xs text-gray-400 truncate">
-                              {[c.tax_id, c.phone].filter(Boolean).join(' · ')}
-                            </div>
-                          )}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {showDropdown && !selectedCustomer && searchQuery.length >= 1 && searchResults?.length === 0 && (
-                  <div className="absolute left-0 right-0 top-full z-10 mt-1 rounded-lg border border-gray-100 bg-white px-3 py-3 text-center text-sm text-gray-400 shadow-lg">
-                    Sin resultados
-                  </div>
-                )}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Teléfono</label>
+                <input
+                  value={quickPhone}
+                  onChange={(e) => setQuickPhone(e.target.value)}
+                  type="tel"
+                  placeholder="600 000 000"
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">NIF / CIF</label>
+                <input
+                  value={quickTaxId}
+                  onChange={(e) => setQuickTaxId(e.target.value)}
+                  placeholder="12345678A"
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
               </div>
             </div>
-          )}
 
-          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                IVA (%)
-                <span className="ml-1 text-xs font-normal text-gray-400">vacío = por defecto</span>
-              </label>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Email</label>
               <input
-                value={taxRate}
-                onChange={(e) => setTaxRate(e.target.value)}
-                type="number"
-                step="0.01"
-                min="0"
-                max="100"
-                placeholder="21.00"
+                value={quickEmail}
+                onChange={(e) => setQuickEmail(e.target.value)}
+                type="email"
+                placeholder="cliente@ejemplo.com"
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
+
+            <div className="flex justify-end gap-2 pt-1">
+              <button
+                type="button"
+                onClick={handleCancelQuickCreate}
+                className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={createCustomer.isPending || !quickName.trim()}
+                className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+              >
+                {createCustomer.isPending ? 'Creando...' : 'Crear cliente'}
+              </button>
+            </div>
+          </form>
+        ) : (
+          <form onSubmit={handleSubmit} className="px-6 py-4 space-y-4">
+            {/* Customer selector */}
+            {isPresetCustomer ? (
+              <div className="rounded-md bg-blue-50 px-3 py-2 text-sm text-blue-700 flex items-center gap-2">
+                <User size={14} />
+                Cliente: <strong>{customerName}</strong>
+              </div>
+            ) : (
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  Cliente
+                  <span className="ml-1 text-xs font-normal text-gray-400">(opcional)</span>
+                </label>
+                <div ref={searchRef} className="relative">
+                  {selectedCustomer ? (
+                    <div className="flex items-center justify-between rounded-md border border-blue-400 bg-blue-50 px-3 py-2 text-sm">
+                      <div className="flex items-center gap-2">
+                        <User size={14} className="text-blue-500" />
+                        <span className="font-medium text-blue-800">{selectedCustomer.name}</span>
+                        {selectedCustomer.tax_id && (
+                          <span className="text-xs text-blue-500">{selectedCustomer.tax_id}</span>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleClearCustomer}
+                        className="text-blue-400 hover:text-blue-600"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <Search
+                        size={14}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                      />
+                      <input
+                        value={searchQuery}
+                        onChange={(e) => {
+                          setSearchQuery(e.target.value)
+                          setShowDropdown(true)
+                        }}
+                        onFocus={() => setShowDropdown(true)}
+                        placeholder="Buscar cliente por nombre, NIF..."
+                        className="w-full rounded-md border border-gray-300 py-2 pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </>
+                  )}
+
+                  {showDropdown && !selectedCustomer && searchResults && searchResults.length > 0 && (
+                    <div className="absolute left-0 right-0 top-full z-10 mt-1 max-h-52 overflow-y-auto rounded-lg border border-gray-100 bg-white shadow-lg">
+                      {searchResults.map((c) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => handleSelectCustomer(c)}
+                          className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm hover:bg-gray-50"
+                        >
+                          <User size={14} className="shrink-0 text-gray-400" />
+                          <div className="min-w-0">
+                            <div className="font-medium text-gray-800 truncate">{c.name}</div>
+                            {(c.tax_id || c.phone) && (
+                              <div className="text-xs text-gray-400 truncate">
+                                {[c.tax_id, c.phone].filter(Boolean).join(' · ')}
+                              </div>
+                            )}
+                          </div>
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={handleOpenQuickCreate}
+                        className="flex w-full items-center gap-2 border-t border-gray-100 px-3 py-2.5 text-left text-sm text-blue-600 hover:bg-blue-50"
+                      >
+                        <UserPlus size={14} />
+                        Crear nuevo cliente
+                      </button>
+                    </div>
+                  )}
+
+                  {noResults && (
+                    <div className="absolute left-0 right-0 top-full z-10 mt-1 rounded-lg border border-gray-100 bg-white shadow-lg">
+                      <div className="px-3 py-3 text-center text-sm text-gray-400">
+                        Sin resultados para "{searchQuery}"
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleOpenQuickCreate}
+                        className="flex w-full items-center gap-2 border-t border-gray-100 px-3 py-2.5 text-left text-sm text-blue-600 hover:bg-blue-50"
+                      >
+                        <UserPlus size={14} />
+                        Crear "{searchQuery}" como nuevo cliente
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  IVA (%)
+                  <span className="ml-1 text-xs font-normal text-gray-400">vacío = por defecto</span>
+                </label>
+                <input
+                  value={taxRate}
+                  onChange={(e) => setTaxRate(e.target.value)}
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max="100"
+                  placeholder="21.00"
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  Descuento global (%)
+                </label>
+                <input
+                  value={discount}
+                  onChange={(e) => setDiscount(e.target.value)}
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max="100"
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">
-                Descuento global (%)
+                Notas para el cliente
               </label>
-              <input
-                value={discount}
-                onChange={(e) => setDiscount(e.target.value)}
-                type="number"
-                step="0.01"
-                min="0"
-                max="100"
+              <textarea
+                value={clientNotes}
+                onChange={(e) => setClientNotes(e.target.value)}
+                rows={2}
+                placeholder="Texto que aparecerá en el PDF del presupuesto..."
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
-          </div>
 
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              Notas para el cliente
-            </label>
-            <textarea
-              value={clientNotes}
-              onChange={(e) => setClientNotes(e.target.value)}
-              rows={2}
-              placeholder="Texto que aparecerá en el PDF del presupuesto..."
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
+            <div>
+              <label className="mb-1 flex items-center gap-2 text-sm font-medium text-gray-700">
+                Notas internas
+                <span className="text-xs font-normal text-amber-600">(solo interno)</span>
+              </label>
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={2}
+                placeholder="Notas no visibles en el PDF..."
+                className="w-full rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+              />
+            </div>
 
-          <div>
-            <label className="mb-1 flex items-center gap-2 text-sm font-medium text-gray-700">
-              Notas internas
-              <span className="text-xs font-normal text-amber-600">(solo interno)</span>
-            </label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={2}
-              placeholder="Notas no visibles en el PDF..."
-              className="w-full rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
-            />
-          </div>
-
-          <div className="flex justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={createBudget.isPending}
-              className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-            >
-              {createBudget.isPending ? 'Creando...' : 'Crear presupuesto'}
-            </button>
-          </div>
-        </form>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={createBudget.isPending}
+                className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+              >
+                {createBudget.isPending ? 'Creando...' : 'Crear presupuesto'}
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   )

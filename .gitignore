@@ -29,3 +29,4 @@ backend/uploads/*
 # IDE
 .vscode/
 .idea/
+graphify-out/

@@ -532,6 +532,23 @@ class BudgetService:
             line.inventory_item = await self._item_repo.get_by_id(line.inventory_item_id)
         return self._build_line_response(line)
 
+    async def delete_budget(self, budget_id: uuid.UUID) -> None:
+        """Delete a budget. Only allowed for draft or rejected budgets."""
+        budget = await self._repo.get_by_id(budget_id)
+        if not budget:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Presupuesto no encontrado",
+            )
+        if budget.status not in (BudgetStatus.DRAFT, BudgetStatus.REJECTED):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Solo se pueden eliminar presupuestos en borrador o rechazados",
+            )
+        await self._repo.delete(budget)
+        await self._session.commit()
+        logger.info("Budget deleted id=%s number=%s", budget.id, budget.budget_number)
+
     async def delete_line(self, budget_id: uuid.UUID, line_id: uuid.UUID) -> None:
         line = await self._line_repo.get_by_id(line_id)
         if not line or line.budget_id != budget_id:

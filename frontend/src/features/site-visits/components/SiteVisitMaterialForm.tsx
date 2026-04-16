@@ -1,8 +1,9 @@
-import { useEffect } from 'react'
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { useInventoryItems } from '@/features/inventory/hooks/use-inventory-items'
+import { InventoryItemPicker } from '@/shared/components/InventoryItemPicker'
+import type { InventoryItem } from '@/features/inventory/types'
 import type { SiteVisitMaterialCreatePayload } from '../types'
 
 const schema = z
@@ -13,13 +14,10 @@ const schema = z
     unit: z.string().optional().nullable(),
     unit_cost: z.coerce.number().nonnegative().optional().nullable(),
   })
-  .refine(
-    (d) => !!d.inventory_item_id || !!d.description,
-    {
-      message: 'Selecciona un material del inventario o escribe una descripción',
-      path: ['description'],
-    }
-  )
+  .refine((d) => !!d.inventory_item_id || !!d.description, {
+    message: 'Selecciona un material del inventario o escribe una descripción',
+    path: ['description'],
+  })
 
 type FormValues = z.infer<typeof schema>
 
@@ -34,27 +32,27 @@ export function SiteVisitMaterialForm({
   onCancel,
   isLoading,
 }: SiteVisitMaterialFormProps) {
-  const { data: inventoryData } = useInventoryItems({ limit: 200 })
-  const inventoryItems = inventoryData?.items ?? []
+  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null)
 
   const {
     register,
     handleSubmit,
-    watch,
     setValue,
+    watch,
     formState: { errors },
   } = useForm<FormValues>({ resolver: zodResolver(schema) })
 
-  const selectedItemId = watch('inventory_item_id')
+  const inventoryItemId = watch('inventory_item_id')
 
-  useEffect(() => {
-    if (!selectedItemId) return
-    const item = inventoryItems.find((i) => i.id === selectedItemId)
-    if (!item) return
-    setValue('description', item.name)
-    setValue('unit', item.unit)
-    setValue('unit_cost', Number(item.unit_cost_avg ?? item.unit_cost ?? 0) || null)
-  }, [selectedItemId, inventoryItems, setValue])
+  const handleItemChange = (item: InventoryItem | null) => {
+    setSelectedItem(item)
+    setValue('inventory_item_id', item?.id ?? null)
+    if (item) {
+      setValue('description', item.name)
+      setValue('unit', item.unit)
+      setValue('unit_cost', Number(item.unit_cost_avg ?? item.unit_cost ?? 0) || null)
+    }
+  }
 
   const handleFormSubmit = (values: FormValues) => {
     onSubmit({
@@ -68,32 +66,23 @@ export function SiteVisitMaterialForm({
 
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
-      {/* Inventory selector */}
+      {/* Inventory picker */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="mb-1 block text-sm font-medium text-gray-700">
           Material del inventario
         </label>
-        <select
-          {...register('inventory_item_id')}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="">— Seleccionar del inventario (opcional) —</option>
-          {inventoryItems.map((item) => {
-            const displayCost = Number(item.unit_cost_avg ?? item.unit_cost ?? 0).toFixed(4)
-            return (
-              <option key={item.id} value={item.id}>
-                {item.name} ({item.unit}) — {displayCost} €/ud
-              </option>
-            )
-          })}
-        </select>
+        <InventoryItemPicker
+          value={selectedItem}
+          onChange={handleItemChange}
+          placeholder="Buscar en inventario (opcional)…"
+        />
       </div>
 
       {/* Description */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="mb-1 block text-sm font-medium text-gray-700">
           Descripción del material{' '}
-          {!selectedItemId && <span className="text-red-500">*</span>}
+          {!inventoryItemId && <span className="text-red-500">*</span>}
         </label>
         <input
           {...register('description')}
@@ -109,7 +98,7 @@ export function SiteVisitMaterialForm({
       {/* Qty / Unit / Price */}
       <div className="grid grid-cols-3 gap-3">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="mb-1 block text-sm font-medium text-gray-700">
             Cantidad <span className="text-red-500">*</span>
           </label>
           <input
@@ -124,16 +113,16 @@ export function SiteVisitMaterialForm({
           )}
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Unidad</label>
+          <label className="mb-1 block text-sm font-medium text-gray-700">Unidad</label>
           <input
             {...register('unit')}
             type="text"
-            placeholder="m, ud, kg..."
+            placeholder="m, ud, kg…"
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Precio unit. (€)</label>
+          <label className="mb-1 block text-sm font-medium text-gray-700">Precio unit. (€)</label>
           <input
             {...register('unit_cost')}
             type="number"
@@ -158,7 +147,7 @@ export function SiteVisitMaterialForm({
           disabled={isLoading}
           className="rounded-md bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
         >
-          {isLoading ? 'Guardando...' : 'Añadir material'}
+          {isLoading ? 'Guardando…' : 'Añadir material'}
         </button>
       </div>
     </form>

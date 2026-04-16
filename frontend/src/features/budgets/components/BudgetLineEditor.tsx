@@ -4,7 +4,7 @@ import type { BudgetLine, BudgetLineCreatePayload, BudgetLineType } from '../typ
 import type { InventoryItem } from '@/features/inventory/types'
 import { useAddLine, useDeleteLine, useUpdateLine } from '../hooks/use-budget-lines'
 import { useBudgetStore } from '../store/budget-store'
-import { InventoryPickerModal } from './InventoryPickerModal'
+import { InventoryItemPicker } from '@/shared/components/InventoryItemPicker'
 
 interface BudgetLineEditorProps {
   budgetId: string
@@ -153,32 +153,30 @@ function AddLineForm({ budgetId, onClose }: AddLineFormProps) {
   const [unitCost, setUnitCost] = useState('0')
   const [lineDiscount, setLineDiscount] = useState('0')
   const [inventoryItemId, setInventoryItemId] = useState<string | null>(null)
-  const [showPicker, setShowPicker] = useState(false)
+  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null)
 
   const isMaterial = lineType === 'material'
 
-  const handleSelectInventoryItem = (item: InventoryItem) => {
-    setInventoryItemId(item.id)
-    setDescription(item.name)
-    setUnit(item.unit)
-    setUnitPrice(String(item.unit_price))
-    setUnitCost(String(item.unit_cost))
-    setShowPicker(false)
-  }
-
-  const handleClearInventoryItem = () => {
-    setInventoryItemId(null)
-    setDescription('')
-    setUnit('')
-    setUnitPrice('0')
-    setUnitCost('0')
+  const handleItemChange = (item: InventoryItem | null) => {
+    setSelectedItem(item)
+    setInventoryItemId(item?.id ?? null)
+    if (item) {
+      setDescription(item.name)
+      setUnit(item.unit)
+      setUnitPrice(String(item.unit_price))
+      setUnitCost(String(Number(item.unit_cost_avg || item.unit_cost || 0)))
+    } else {
+      setDescription('')
+      setUnit('')
+      setUnitPrice('0')
+      setUnitCost('0')
+    }
   }
 
   const handleTypeChange = (newType: BudgetLineType) => {
     setLineType(newType)
-    // Reset material-specific fields when switching away from material
     if (newType !== 'material' && inventoryItemId) {
-      handleClearInventoryItem()
+      handleItemChange(null)
     }
   }
 
@@ -229,30 +227,11 @@ function AddLineForm({ budgetId, onClose }: AddLineFormProps) {
               {isMaterial ? (
                 <div className="flex-1">
                   <label className="block text-xs text-gray-500 mb-0.5">Material del inventario</label>
-                  {inventoryItemId ? (
-                    <div className="flex items-center justify-between rounded border border-green-400 bg-green-50 px-2 py-1 text-sm">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <Package size={13} className="shrink-0 text-green-600" />
-                        <span className="truncate font-medium text-green-800">{description}</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={handleClearInventoryItem}
-                        className="ml-2 shrink-0 text-green-500 hover:text-green-700"
-                      >
-                        <X size={13} />
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setShowPicker(true)}
-                      className="flex w-full items-center gap-2 rounded border border-dashed border-green-400 bg-white px-2 py-1 text-sm text-green-700 hover:bg-green-50"
-                    >
-                      <Package size={13} />
-                      Seleccionar del inventario...
-                    </button>
-                  )}
+                  <InventoryItemPicker
+                    value={selectedItem}
+                    onChange={handleItemChange}
+                    placeholder="Buscar o crear material…"
+                  />
                 </div>
               ) : (
                 <div className="flex-1">
@@ -343,12 +322,6 @@ function AddLineForm({ budgetId, onClose }: AddLineFormProps) {
         </td>
       </tr>
 
-      {showPicker && (
-        <InventoryPickerModal
-          onSelect={handleSelectInventoryItem}
-          onClose={() => setShowPicker(false)}
-        />
-      )}
     </>
   )
 }

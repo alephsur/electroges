@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Package, Plus, Trash2 } from 'lucide-react'
 import { getApiErrorMessage } from '@/shared/hooks/use-api-error'
-import { useInventoryItems } from '@/features/inventory/hooks/use-inventory-items'
+import { InventoryItemPicker } from '@/shared/components/InventoryItemPicker'
+import type { InventoryItem } from '@/features/inventory/types'
 import { useAddMaterial, useConsumeMaterial, useRemoveMaterial } from '../hooks/use-work-order-tasks'
 import type { Task, TaskMaterial, WorkOrder } from '../types'
 
@@ -28,30 +29,30 @@ interface AddMaterialFormProps {
 }
 
 function AddMaterialForm({ workOrderId, tasks, onClose }: AddMaterialFormProps) {
-  const [itemSearch, setItemSearch] = useState('')
-  const [selectedItemId, setSelectedItemId] = useState('')
-  const [selectedItemUnit, setSelectedItemUnit] = useState('')
-  const [selectedItemCost, setSelectedItemCost] = useState('')
+  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null)
   const [taskId, setTaskId] = useState(tasks[0]?.id ?? '')
   const [qty, setQty] = useState('')
   const [unitCost, setUnitCost] = useState('')
 
-  const { data: inventoryData } = useInventoryItems({
-    q: itemSearch || undefined,
-    limit: 50,
-  })
-  const items = inventoryData?.items ?? []
-
   const addMaterial = useAddMaterial()
 
+  const handleItemChange = (item: InventoryItem | null) => {
+    setSelectedItem(item)
+    if (item) {
+      setUnitCost(String(Number(item.unit_cost_avg || item.unit_cost || 0)))
+    } else {
+      setUnitCost('')
+    }
+  }
+
   const handleSubmit = async () => {
-    if (!selectedItemId || !taskId || !qty) return
+    if (!selectedItem || !taskId || !qty) return
     const qtyNum = parseFloat(qty.replace(',', '.'))
     if (isNaN(qtyNum) || qtyNum <= 0) return
     try {
       await addMaterial.mutateAsync({
         workOrderId,
-        inventory_item_id: selectedItemId,
+        inventory_item_id: selectedItem.id,
         task_id: taskId,
         estimated_quantity: qtyNum,
         unit_cost: unitCost ? parseFloat(unitCost.replace(',', '.')) : undefined,
@@ -63,55 +64,25 @@ function AddMaterialForm({ workOrderId, tasks, onClose }: AddMaterialFormProps) 
   }
 
   return (
-    <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 space-y-3">
+    <div className="space-y-3 rounded-xl border border-blue-200 bg-blue-50 p-4">
       <p className="text-sm font-semibold text-gray-800">Añadir material</p>
 
-      {/* Inventory item search */}
+      {/* Inventory item picker */}
       <div>
-        <label className="block text-xs font-medium text-gray-600 mb-1">
-          Artículo de inventario
+        <label className="mb-1 block text-xs font-medium text-gray-600">
+          Artículo de inventario <span className="text-red-400">*</span>
         </label>
-        <input
-          type="text"
-          placeholder="Buscar artículo…"
-          value={itemSearch}
-          onChange={(e) => {
-            setItemSearch(e.target.value)
-            setSelectedItemId('')
-          }}
-          className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-400 focus:outline-none"
-          autoFocus
+        <InventoryItemPicker
+          value={selectedItem}
+          onChange={handleItemChange}
+          placeholder="Buscar o crear artículo…"
+          required
         />
-        {items.length > 0 && !selectedItemId && (
-          <div className="mt-1 max-h-36 overflow-y-auto rounded-md border border-gray-200 bg-white shadow-sm">
-            {items.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => {
-                  setSelectedItemId(item.id)
-                  setSelectedItemUnit(item.unit)
-                  setSelectedItemCost(String(Number(item.unit_cost_avg || item.unit_cost)))
-                  setUnitCost(String(Number(item.unit_cost_avg || item.unit_cost)))
-                  setItemSearch(item.name)
-                }}
-                className="block w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
-              >
-                <span className="font-medium">{item.name}</span>
-                <span className="ml-2 text-xs text-gray-400">
-                  {item.unit} · {fmt(Number(item.unit_cost_avg || item.unit_cost))} €/ud
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
       </div>
 
       {/* Task selector */}
       <div>
-        <label className="block text-xs font-medium text-gray-600 mb-1">
-          Asignar a tarea
-        </label>
+        <label className="mb-1 block text-xs font-medium text-gray-600">Asignar a tarea</label>
         <select
           value={taskId}
           onChange={(e) => setTaskId(e.target.value)}
@@ -128,8 +99,8 @@ function AddMaterialForm({ workOrderId, tasks, onClose }: AddMaterialFormProps) 
       {/* Quantity + unit cost */}
       <div className="flex gap-2">
         <div className="flex-1">
-          <label className="block text-xs font-medium text-gray-600 mb-1">
-            Cantidad est. {selectedItemUnit ? `(${selectedItemUnit})` : ''}
+          <label className="mb-1 block text-xs font-medium text-gray-600">
+            Cantidad est.{selectedItem ? ` (${selectedItem.unit})` : ''}
           </label>
           <input
             type="number"
@@ -142,14 +113,12 @@ function AddMaterialForm({ workOrderId, tasks, onClose }: AddMaterialFormProps) 
           />
         </div>
         <div className="flex-1">
-          <label className="block text-xs font-medium text-gray-600 mb-1">
-            Coste unitario (€)
-          </label>
+          <label className="mb-1 block text-xs font-medium text-gray-600">Coste unitario (€)</label>
           <input
             type="number"
             min="0"
             step="0.0001"
-            placeholder={selectedItemCost || '0.00'}
+            placeholder="0.00"
             value={unitCost}
             onChange={(e) => setUnitCost(e.target.value)}
             className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm"
@@ -160,7 +129,7 @@ function AddMaterialForm({ workOrderId, tasks, onClose }: AddMaterialFormProps) 
       <div className="flex gap-2 pt-1">
         <button
           onClick={handleSubmit}
-          disabled={!selectedItemId || !taskId || !qty || addMaterial.isPending}
+          disabled={!selectedItem || !taskId || !qty || addMaterial.isPending}
           className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
         >
           {addMaterial.isPending ? 'Añadiendo…' : 'Añadir'}

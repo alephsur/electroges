@@ -82,11 +82,7 @@ export function CustomerForm({ initial, onSubmit, onCancel, isLoading }: Custome
                   : 'border-gray-200 text-gray-600 hover:border-gray-300'
               }`}
             >
-              {TYPE_LABELS[type].name.split(' ')[0] === 'Nombre'
-                ? 'Particular'
-                : type === 'company'
-                ? 'Empresa'
-                : 'Comunidad'}
+              {type === 'individual' ? 'Particular' : type === 'company' ? 'Empresa' : 'Comunidad'}
             </button>
           ))}
         </div>

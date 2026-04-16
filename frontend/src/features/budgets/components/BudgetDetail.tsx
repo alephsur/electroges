@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FileText, Layers, BarChart2, Download, Send, X, GitBranch, CheckCircle, ArrowLeft } from 'lucide-react'
+import { FileText, Layers, BarChart2, Download, Send, X, GitBranch, CheckCircle, ArrowLeft, Trash2 } from 'lucide-react'
 import type { Budget } from '../types'
 import { useBudgetStore } from '../store/budget-store'
 import {
   useAcceptBudget,
   useCreateNewVersion,
+  useDeleteBudget,
   useRejectBudget,
   useSendBudget,
   useWorkOrderPreview,
@@ -25,12 +26,14 @@ interface BudgetDetailProps {
 export function BudgetDetail({ budget }: BudgetDetailProps) {
   const { activeTab, setActiveTab } = useBudgetStore()
   const [showPreviewModal, setShowPreviewModal] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const navigate = useNavigate()
 
   const sendBudget = useSendBudget()
   const rejectBudget = useRejectBudget()
   const newVersion = useCreateNewVersion()
   const acceptBudget = useAcceptBudget()
+  const deleteBudget = useDeleteBudget()
   const generatePdf = useGeneratePdf(budget.id)
 
   const { data: preview, isLoading: previewLoading } = useWorkOrderPreview(
@@ -42,6 +45,16 @@ export function BudgetDetail({ budget }: BudgetDetailProps) {
   const isAccepted = budget.status === 'accepted'
   const isRejected = budget.status === 'rejected'
   const isExpired = budget.effective_status === 'expired'
+  const canDelete = isDraft || isRejected
+
+  const handleDelete = () => {
+    deleteBudget.mutate(budget.id, {
+      onSuccess: () => {
+        setShowDeleteConfirm(false)
+        navigate('/presupuestos')
+      },
+    })
+  }
 
   const TABS = [
     { id: 'lineas' as const, label: `Líneas (${budget.lines_count})`, icon: <FileText size={13} /> },
@@ -212,6 +225,15 @@ export function BudgetDetail({ budget }: BudgetDetailProps) {
               </button>
             </>
           )}
+          {canDelete && (
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              className="flex items-center gap-1.5 rounded-md border border-red-200 px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 ml-auto"
+            >
+              <Trash2 size={13} />
+              Eliminar
+            </button>
+          )}
         </div>
       </div>
 
@@ -263,6 +285,43 @@ export function BudgetDetail({ budget }: BudgetDetailProps) {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="rounded-xl bg-white px-8 py-6 text-sm text-gray-600">
             Cargando vista previa...
+          </div>
+        </div>
+      )}
+
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-sm rounded-xl bg-white shadow-xl p-6">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100">
+                <Trash2 size={18} className="text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900">Eliminar presupuesto</h3>
+                <p className="text-xs text-gray-500">{budget.budget_number}</p>
+              </div>
+            </div>
+            <p className="text-sm text-gray-600 mb-5">
+              Esta acción es permanente y no se puede deshacer. ¿Confirmas que quieres eliminar este presupuesto?
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={deleteBudget.isPending}
+                className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={deleteBudget.isPending}
+                className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleteBudget.isPending ? 'Eliminando...' : 'Eliminar'}
+              </button>
+            </div>
           </div>
         </div>
       )}

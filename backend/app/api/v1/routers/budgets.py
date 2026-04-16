@@ -97,6 +97,11 @@ async def get_budget(budget_id: uuid.UUID, db: DbSession, _: CurrentUser, tenant
     return await BudgetService(db, tenant_id).get_budget(budget_id)
 
 
+@router.delete("/budgets/{budget_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_budget(budget_id: uuid.UUID, db: DbSession, _: CurrentUser, tenant_id: CurrentTenantId):
+    await BudgetService(db, tenant_id).delete_budget(budget_id)
+
+
 @router.patch("/budgets/{budget_id}", response_model=BudgetResponse)
 async def update_budget(
     budget_id: uuid.UUID, data: BudgetUpdate, db: DbSession, _: CurrentUser, tenant_id: CurrentTenantId

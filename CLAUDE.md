@@ -326,3 +326,12 @@ Las siguientes decisiones garantizan que la transición sea aditiva:
 | 2025-01 | Añadidas reglas de conversión presupuesto → obra |
 | 2025-01 | Añadido margen interno por línea de presupuesto |
 | 2025-01 | Añadido soporte a versiones de presupuesto |
+
+## graphify
+
+This project has a graphify knowledge graph at graphify-out/.
+
+Rules:
+- Before answering architecture or codebase questions, read graphify-out/GRAPH_REPORT.md for god nodes and community structure
+- If graphify-out/wiki/index.md exists, navigate it instead of reading raw files
+- After modifying code files in this session, run `graphify update .` to keep the graph current (AST-only, no API cost)
