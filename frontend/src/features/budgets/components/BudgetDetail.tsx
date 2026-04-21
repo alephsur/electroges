@@ -45,7 +45,6 @@ export function BudgetDetail({ budget }: BudgetDetailProps) {
   const isAccepted = budget.status === 'accepted'
   const isRejected = budget.status === 'rejected'
   const isExpired = budget.effective_status === 'expired'
-  const canDelete = isDraft || isRejected
 
   const handleDelete = () => {
     deleteBudget.mutate(budget.id, {
@@ -225,15 +224,13 @@ export function BudgetDetail({ budget }: BudgetDetailProps) {
               </button>
             </>
           )}
-          {canDelete && (
-            <button
-              onClick={() => setShowDeleteConfirm(true)}
-              className="flex items-center gap-1.5 rounded-md border border-red-200 px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 ml-auto"
-            >
-              <Trash2 size={13} />
-              Eliminar
-            </button>
-          )}
+          <button
+            onClick={() => setShowDeleteConfirm(true)}
+            className="flex items-center gap-1.5 rounded-md border border-red-200 px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 ml-auto"
+          >
+            <Trash2 size={13} />
+            Eliminar
+          </button>
         </div>
       </div>
 

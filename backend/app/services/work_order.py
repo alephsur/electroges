@@ -303,6 +303,43 @@ class WorkOrderService:
         await self._session.commit()
         return await self.get_work_order(work_order_id)
 
+    async def delete_work_order(self, work_order_id: uuid.UUID) -> None:
+        """
+        Delete a work order regardless of status.
+        Releases any stock reserved by pending/in-progress task materials,
+        and nullifies FKs in linked budgets and invoices.
+        """
+        from app.models.budget import Budget
+        from app.models.invoice import Invoice
+
+        order = await self._repo.get_by_id(work_order_id)
+        if not order:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Obra no encontrada",
+            )
+
+        await self._release_all_reserved_stock(work_order_id)
+
+        await self._session.execute(
+            update(Budget)
+            .where(Budget.work_order_id == work_order_id)
+            .values(work_order_id=None)
+        )
+        await self._session.execute(
+            update(Invoice)
+            .where(Invoice.work_order_id == work_order_id)
+            .values(work_order_id=None)
+        )
+
+        await self._repo.delete(order)
+        await self._session.commit()
+        logger.info(
+            "work_order.deleted id=%s number=%s",
+            work_order_id,
+            order.work_order_number,
+        )
+
     # ── Status transitions ────────────────────────────────────────────────────
 
     async def update_status(

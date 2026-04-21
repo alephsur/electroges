@@ -3,10 +3,14 @@ import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { ArrowLeft, Clock, FileText, Image, MapPin, Package, User } from 'lucide-react'
+import { ArrowLeft, Clock, FileText, Image, MapPin, Package, Trash2, User } from 'lucide-react'
 import type { SiteVisit } from '../types'
 import { useSiteVisitStore } from '../store/site-visit-store'
-import { useUpdateSiteVisit, useUpdateSiteVisitStatus } from '../hooks/use-site-visits'
+import {
+  useDeleteSiteVisit,
+  useUpdateSiteVisit,
+  useUpdateSiteVisitStatus,
+} from '../hooks/use-site-visits'
 import { SiteVisitStatusBadge } from './SiteVisitStatusBadge'
 import { SiteVisitMaterialList } from './SiteVisitMaterialList'
 import { SiteVisitPhotoGallery } from './SiteVisitPhotoGallery'
@@ -34,8 +38,19 @@ export function SiteVisitDetail({ visit }: SiteVisitDetailProps) {
   const { activeTab, setActiveTab } = useSiteVisitStore()
   const [showLinkModal, setShowLinkModal] = useState(false)
   const [showBudgetForm, setShowBudgetForm] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const updateVisit = useUpdateSiteVisit()
   const updateStatus = useUpdateSiteVisitStatus()
+  const deleteVisit = useDeleteSiteVisit()
+
+  const handleDelete = () => {
+    deleteVisit.mutate(visit.id, {
+      onSuccess: () => {
+        setShowDeleteConfirm(false)
+        navigate('/visitas')
+      },
+    })
+  }
 
   const isEditable = visit.status === 'scheduled' || visit.status === 'in_progress'
 
@@ -198,6 +213,13 @@ export function SiteVisitDetail({ visit }: SiteVisitDetailProps) {
               Reprogramar
             </button>
           )}
+          <button
+            onClick={() => setShowDeleteConfirm(true)}
+            className="flex items-center gap-1.5 rounded-md border border-red-200 px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 ml-auto"
+          >
+            <Trash2 size={13} />
+            Eliminar
+          </button>
         </div>
       </div>
 
@@ -327,6 +349,47 @@ export function SiteVisitDetail({ visit }: SiteVisitDetailProps) {
           initialVisitId={visit.id}
           onClose={() => setShowBudgetForm(false)}
         />
+      )}
+
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-sm rounded-xl bg-white shadow-xl p-6">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100">
+                <Trash2 size={18} className="text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900">Eliminar visita</h3>
+                <p className="text-xs text-gray-500">
+                  {visit.customer_name || 'Sin cliente'}
+                </p>
+              </div>
+            </div>
+            <p className="text-sm text-gray-600 mb-5">
+              Esta acción es permanente y no se puede deshacer. Se eliminarán también
+              los materiales, fotos y documentos asociados. ¿Confirmas que quieres
+              eliminar esta visita?
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={deleteVisit.isPending}
+                className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={deleteVisit.isPending}
+                className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleteVisit.isPending ? 'Eliminando...' : 'Eliminar'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

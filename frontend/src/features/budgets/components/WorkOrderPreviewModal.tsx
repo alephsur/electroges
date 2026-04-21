@@ -1,4 +1,3 @@
-import { AlertTriangle, CheckCircle2, XCircle } from 'lucide-react'
 import type { WorkOrderPreview } from '../types'
 
 interface WorkOrderPreviewModalProps {
@@ -26,25 +25,6 @@ export function WorkOrderPreviewModal({
             Presupuesto <strong>{preview.budget_number}</strong> · {preview.customer_name}
           </p>
         </div>
-
-        {/* Warnings */}
-        {preview.warnings.length > 0 && (
-          <div className="mx-6 mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
-            <div className="flex items-center gap-2 mb-2">
-              <AlertTriangle size={15} className="text-amber-600 shrink-0" />
-              <span className="text-sm font-medium text-amber-800">
-                Advertencias de stock
-              </span>
-            </div>
-            <ul className="space-y-1">
-              {preview.warnings.map((w, i) => (
-                <li key={i} className="text-sm text-amber-700">
-                  · {w}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
 
         {/* Two-column content */}
         <div className="grid grid-cols-2 gap-4 px-6 py-4">
@@ -74,7 +54,7 @@ export function WorkOrderPreviewModal({
           {/* Materials */}
           <div>
             <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
-              Materiales a reservar ({preview.materials_to_reserve.length})
+              Materiales necesarios ({preview.materials_to_reserve.length})
             </h3>
             {preview.materials_to_reserve.length === 0 ? (
               <p className="text-sm text-gray-400">
@@ -85,19 +65,12 @@ export function WorkOrderPreviewModal({
                 {preview.materials_to_reserve.map((m, i) => (
                   <div
                     key={i}
-                    className="flex items-start justify-between rounded-md border border-gray-100 px-3 py-2"
+                    className="rounded-md border border-gray-100 px-3 py-2"
                   >
-                    <div>
-                      <div className="text-sm font-medium text-gray-800">{m.name}</div>
-                      <div className="text-xs text-gray-500">
-                        {m.quantity} {m.unit} · Stock: {m.stock_available}
-                      </div>
+                    <div className="text-sm font-medium text-gray-800">{m.name}</div>
+                    <div className="text-xs text-gray-500">
+                      {m.quantity} {m.unit} · Stock actual: {m.stock_available}
                     </div>
-                    {m.enough_stock ? (
-                      <CheckCircle2 size={15} className="mt-0.5 shrink-0 text-green-500" />
-                    ) : (
-                      <XCircle size={15} className="mt-0.5 shrink-0 text-red-500" />
-                    )}
                   </div>
                 ))}
               </div>

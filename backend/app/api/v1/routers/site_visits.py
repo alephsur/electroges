@@ -67,6 +67,13 @@ async def update_visit(
     return await SiteVisitService(db, tenant_id).update_visit(visit_id, data)
 
 
+@router.delete("/{visit_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_visit(
+    visit_id: uuid.UUID, db: DbSession, _: CurrentUser, tenant_id: CurrentTenantId
+):
+    await SiteVisitService(db, tenant_id).delete_visit(visit_id)
+
+
 @router.patch("/{visit_id}/status", response_model=SiteVisitResponse)
 async def update_status(
     visit_id: uuid.UUID, data: SiteVisitStatusUpdate, db: DbSession, _: CurrentUser, tenant_id: CurrentTenantId

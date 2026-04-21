@@ -409,6 +409,44 @@ class InvoiceService:
         await self._session.commit()
         return await self.get_invoice(rect.id)
 
+    async def delete_invoice(self, invoice_id: uuid.UUID) -> None:
+        """
+        Delete an invoice regardless of status.
+        - Reverts linked certifications back to issued (invoice_id=NULL).
+        - Nullifies rectifies_invoice_id in any invoice that rectifies this one.
+        - Removes the PDF file from disk.
+        """
+        invoice = await self._repo.get_with_full_detail(invoice_id)
+        if not invoice:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Factura no encontrada",
+            )
+
+        await self._session.execute(
+            update(Certification)
+            .where(Certification.invoice_id == invoice_id)
+            .values(status="issued", invoice_id=None)
+        )
+        await self._session.execute(
+            update(Invoice)
+            .where(Invoice.rectifies_invoice_id == invoice_id)
+            .values(rectifies_invoice_id=None)
+        )
+
+        if invoice.pdf_path:
+            pdf_file = Path(invoice.pdf_path)
+            if pdf_file.exists():
+                pdf_file.unlink()
+
+        await self._repo.delete(invoice)
+        await self._session.commit()
+        logger.info(
+            "invoice.deleted id=%s number=%s",
+            invoice_id,
+            invoice.invoice_number,
+        )
+
     # ── Payments ──────────────────────────────────────────────────────────────
 
     async def register_payment(

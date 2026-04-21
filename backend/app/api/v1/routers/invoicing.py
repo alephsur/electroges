@@ -98,6 +98,17 @@ async def get_invoice(
     return await svc.get_invoice(invoice_id)
 
 
+@router.delete("/{invoice_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_invoice(
+    invoice_id: uuid.UUID,
+    db: DbSession,
+    _: CurrentUser,
+    tenant_id: CurrentTenantId,
+):
+    svc = InvoiceService(db, tenant_id)
+    await svc.delete_invoice(invoice_id)
+
+
 @router.patch("/{invoice_id}", response_model=InvoiceResponse)
 async def update_invoice(
     invoice_id: uuid.UUID,

@@ -128,6 +128,18 @@ export function useSendInvoice() {
   })
 }
 
+export function useDeleteInvoice() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await apiClient.delete(`/api/v1/invoices/${id}`)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: invoiceKeys.lists() })
+    },
+  })
+}
+
 export function useCancelInvoice() {
   const queryClient = useQueryClient()
   return useMutation({

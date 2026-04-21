@@ -91,6 +91,19 @@ async def update_work_order(
     return await svc.update_work_order(work_order_id, data)
 
 
+@router.delete(
+    "/{work_order_id}", status_code=status.HTTP_204_NO_CONTENT
+)
+async def delete_work_order(
+    work_order_id: uuid.UUID,
+    db: DbSession,
+    _: CurrentUser,
+    tenant_id: CurrentTenantId,
+):
+    svc = WorkOrderService(db, tenant_id)
+    await svc.delete_work_order(work_order_id)
+
+
 @router.patch(
     "/{work_order_id}/status",
     response_model=WorkOrderResponse,

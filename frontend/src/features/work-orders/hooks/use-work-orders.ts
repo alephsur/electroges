@@ -81,6 +81,18 @@ export function useCreateWorkOrder() {
   })
 }
 
+export function useDeleteWorkOrder() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await apiClient.delete(`/api/v1/work-orders/${id}`)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: workOrderKeys.lists() })
+    },
+  })
+}
+
 export function useUpdateWorkOrderStatus() {
   const queryClient = useQueryClient()
   return useMutation({

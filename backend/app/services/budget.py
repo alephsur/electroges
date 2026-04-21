@@ -348,7 +348,6 @@ class BudgetService:
 
         tasks_to_create = []
         materials_to_reserve = []
-        warnings = []
         total_cost = Decimal("0.0")
 
         for line in budget.lines:
@@ -364,23 +363,16 @@ class BudgetService:
                 item = line.inventory_item
                 item_name = item.name if item else line.description
                 stock_available = float(item.stock_current) if item else 0.0
-                enough_stock = stock_available >= float(line.quantity)
 
                 materials_to_reserve.append({
                     "name": item_name,
                     "quantity": float(line.quantity),
                     "unit": line.unit or (item.unit if item else ""),
                     "stock_available": stock_available,
-                    "enough_stock": enough_stock,
                     "inventory_item_id": (
                         str(line.inventory_item_id) if line.inventory_item_id else None
                     ),
                 })
-                if not enough_stock:
-                    warnings.append(
-                        f"Stock insuficiente de '{item_name}': "
-                        f"disponible {stock_available}, necesario {float(line.quantity)}"
-                    )
                 total_cost += line.unit_cost * line.quantity
 
         return WorkOrderPreview(
@@ -389,7 +381,6 @@ class BudgetService:
             customer_name=budget.customer.name if budget.customer else None,
             tasks_to_create=tasks_to_create,
             materials_to_reserve=materials_to_reserve,
-            warnings=warnings,
             total_estimated_cost=total_cost,
         )
 
@@ -417,7 +408,7 @@ class BudgetService:
         await self._session.flush()
         logger.info("Budget accepted id=%s", budget_id)
 
-        work_order_service = WorkOrderService(self._session)
+        work_order_service = WorkOrderService(self._session, self._tenant_id)
         work_order = await work_order_service.create_from_budget(budget_id)
 
         return {
@@ -533,18 +524,45 @@ class BudgetService:
         return self._build_line_response(line)
 
     async def delete_budget(self, budget_id: uuid.UUID) -> None:
-        """Delete a budget. Only allowed for draft or rejected budgets."""
-        budget = await self._repo.get_by_id(budget_id)
+        """
+        Delete a budget regardless of status.
+        Nullifies FKs that reference this budget and its lines so the deletion
+        doesn't violate constraints.
+        """
+        from app.models.work_order import Task, TaskMaterial, WorkOrder
+
+        budget = await self._repo.get_with_full_detail(budget_id)
         if not budget:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Presupuesto no encontrado",
             )
-        if budget.status not in (BudgetStatus.DRAFT, BudgetStatus.REJECTED):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Solo se pueden eliminar presupuestos en borrador o rechazados",
+
+        line_ids = [line.id for line in budget.lines]
+
+        if line_ids:
+            await self._session.execute(
+                update(Task)
+                .where(Task.origin_budget_line_id.in_(line_ids))
+                .values(origin_budget_line_id=None)
             )
+            await self._session.execute(
+                update(TaskMaterial)
+                .where(TaskMaterial.origin_budget_line_id.in_(line_ids))
+                .values(origin_budget_line_id=None)
+            )
+
+        await self._session.execute(
+            update(WorkOrder)
+            .where(WorkOrder.origin_budget_id == budget_id)
+            .values(origin_budget_id=None)
+        )
+        await self._session.execute(
+            update(Budget)
+            .where(Budget.parent_budget_id == budget_id)
+            .values(parent_budget_id=None)
+        )
+
         await self._repo.delete(budget)
         await self._session.commit()
         logger.info("Budget deleted id=%s number=%s", budget.id, budget.budget_number)

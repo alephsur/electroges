@@ -9,8 +9,14 @@ import {
   Bell,
   Plus,
   ArrowLeft,
+  Trash2,
 } from 'lucide-react'
-import { useInvoice, useSendInvoice, useCancelInvoice } from '../hooks/use-invoices'
+import {
+  useInvoice,
+  useSendInvoice,
+  useCancelInvoice,
+  useDeleteInvoice,
+} from '../hooks/use-invoices'
 import { useGenerateInvoicePdf, useDownloadInvoicePdf } from '../hooks/use-invoice-pdf'
 import { InvoiceStatusBadge } from './InvoiceStatusBadge'
 import { PaymentProgressBar } from './PaymentProgressBar'
@@ -35,11 +41,13 @@ export function InvoiceDetail({ invoiceId }: Props) {
   const [showPaymentForm, setShowPaymentForm] = useState(false)
   const [showRectModal, setShowRectModal] = useState(false)
   const [showReminderModal, setShowReminderModal] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [reminder, setReminder] = useState<PaymentReminderResponse | null>(null)
 
   const { data: invoice, isLoading } = useInvoice(invoiceId)
   const { mutate: sendInvoice, isPending: isSending } = useSendInvoice()
   const { mutate: cancelInvoice, isPending: isCancelling } = useCancelInvoice()
+  const { mutate: deleteInvoice, isPending: isDeleting } = useDeleteInvoice()
   const { mutate: generatePdf, isPending: isGenerating } =
     useGenerateInvoicePdf(invoiceId)
   const { mutate: downloadPdf, isPending: isDownloading } =
@@ -47,6 +55,15 @@ export function InvoiceDetail({ invoiceId }: Props) {
       invoiceId,
       invoice?.invoice_number ?? '',
     )
+
+  function handleDelete() {
+    deleteInvoice(invoiceId, {
+      onSuccess: () => {
+        setShowDeleteConfirm(false)
+        navigate('/facturacion')
+      },
+    })
+  }
 
   async function handleLoadReminder() {
     const { data } = await apiClient.get<PaymentReminderResponse>(
@@ -208,6 +225,12 @@ export function InvoiceDetail({ invoiceId }: Props) {
                 <Download size={12} /> Descargar PDF
               </button>
             )}
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              className="flex items-center gap-1 rounded border border-red-200 px-3 py-1.5 text-xs text-red-600 hover:bg-red-50"
+            >
+              <Trash2 size={12} /> Eliminar
+            </button>
           </div>
         </div>
 
@@ -354,6 +377,44 @@ export function InvoiceDetail({ invoiceId }: Props) {
           reminder={reminder}
           onClose={() => setShowReminderModal(false)}
         />
+      )}
+
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-sm rounded-xl bg-white shadow-xl p-6">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100">
+                <Trash2 size={18} className="text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900">Eliminar factura</h3>
+                <p className="text-xs text-gray-500">{invoice.invoice_number}</p>
+              </div>
+            </div>
+            <p className="text-sm text-gray-600 mb-5">
+              Esta acción es permanente y no se puede deshacer. Se eliminarán las
+              líneas y cobros asociados. ¿Confirmas que quieres eliminar esta factura?
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={isDeleting}
+                className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={isDeleting}
+                className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {isDeleting ? 'Eliminando...' : 'Eliminar'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

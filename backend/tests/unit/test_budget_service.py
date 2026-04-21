@@ -750,20 +750,19 @@ class TestGetWorkOrderPreview:
         assert len(preview.materials_to_reserve) == 1
         mat = preview.materials_to_reserve[0]
         assert mat["quantity"] == 10.0
-        assert mat["enough_stock"] is True
-        assert preview.warnings == []
+        assert mat["stock_available"] == 100.0
 
-    async def test_preview_warns_on_insufficient_stock(self, mocks):
+    async def test_preview_shows_materials_when_stock_insufficient(self, mocks):
         mat_line = self._make_material_line(stock=Decimal("5"))
         budget = make_budget(status=BudgetStatus.SENT, lines=[mat_line])
         mocks.repo.get_with_full_detail.return_value = budget
 
         preview = await mocks.svc.get_work_order_preview(budget.id)
 
+        assert len(preview.materials_to_reserve) == 1
         mat = preview.materials_to_reserve[0]
-        assert mat["enough_stock"] is False
-        assert len(preview.warnings) == 1
-        assert "insuficiente" in preview.warnings[0]
+        assert mat["stock_available"] == 5.0
+        assert mat["quantity"] == 10.0
 
     async def test_preview_total_estimated_cost(self, mocks):
         labor_line = self._make_labor_line()  # 8h * 30 = 240

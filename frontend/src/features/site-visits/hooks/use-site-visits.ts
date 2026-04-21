@@ -90,6 +90,18 @@ export function useUpdateSiteVisitStatus() {
   })
 }
 
+export function useDeleteSiteVisit() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await apiClient.delete(`/api/v1/site-visits/${id}`)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: siteVisitKeys.lists() })
+    },
+  })
+}
+
 export function useLinkCustomer() {
   const queryClient = useQueryClient()
   return useMutation({

@@ -161,6 +161,43 @@ class SiteVisitService:
         await self._session.commit()
         return await self.get_visit(visit_id)
 
+    async def delete_visit(self, visit_id: uuid.UUID) -> None:
+        """
+        Delete a site visit regardless of status.
+        Nullifies budget.site_visit_id for linked budgets (keeps them intact).
+        Removes associated photo/document files from disk.
+        """
+        from sqlalchemy import update as sa_update
+
+        from app.models.budget import Budget
+
+        visit = await self._repo.get_with_full_detail(visit_id)
+        if not visit:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Visita técnica no encontrada",
+            )
+
+        for photo in visit.photos:
+            photo_path = Path(photo.file_path)
+            if photo_path.exists():
+                photo_path.unlink()
+
+        for doc in visit.documents:
+            doc_path = Path(doc.file_path)
+            if doc_path.exists():
+                doc_path.unlink()
+
+        await self._session.execute(
+            sa_update(Budget)
+            .where(Budget.site_visit_id == visit_id)
+            .values(site_visit_id=None)
+        )
+
+        await self._repo.delete(visit)
+        await self._session.commit()
+        logger.info("SiteVisit deleted id=%s", visit_id)
+
     # ── Status management ─────────────────────────────────────────────────────
 
     async def update_status(

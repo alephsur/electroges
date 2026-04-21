@@ -187,7 +187,6 @@ class WorkOrderPreview(_ResponseBase):
     customer_name: str | None
     tasks_to_create: list[dict]
     materials_to_reserve: list[dict]
-    warnings: list[str]
     total_estimated_cost: float
 
 

@@ -1,8 +1,9 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, MapPin, ExternalLink } from 'lucide-react'
+import { ArrowLeft, MapPin, ExternalLink, Trash2 } from 'lucide-react'
 import { getApiErrorMessage } from '@/shared/hooks/use-api-error'
 import { useWorkOrderStore } from '../store/work-order-store'
-import { useUpdateWorkOrderStatus } from '../hooks/use-work-orders'
+import { useDeleteWorkOrder, useUpdateWorkOrderStatus } from '../hooks/use-work-orders'
 import { WorkOrderStatusBadge } from './WorkOrderStatusBadge'
 import { WorkOrderKPIPanel } from './WorkOrderKPIPanel'
 import { TaskList } from './TaskList'
@@ -61,6 +62,17 @@ export function WorkOrderDetail({ workOrder }: WorkOrderDetailProps) {
   const navigate = useNavigate()
   const { activeTab, setActiveTab } = useWorkOrderStore()
   const updateStatus = useUpdateWorkOrderStatus()
+  const deleteWorkOrder = useDeleteWorkOrder()
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+
+  const handleDelete = () => {
+    deleteWorkOrder.mutate(workOrder.id, {
+      onSuccess: () => {
+        setShowDeleteConfirm(false)
+        navigate('/obras')
+      },
+    })
+  }
 
   const handleOpenBudget = () => {
     if (!workOrder.origin_budget_id) return
@@ -125,20 +137,25 @@ export function WorkOrderDetail({ workOrder }: WorkOrderDetailProps) {
           </div>
 
           {/* Status action buttons */}
-          {buttons.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {buttons.map(({ label, next, variant }) => (
-                <button
-                  key={next}
-                  onClick={() => handleStatusChange(next)}
-                  disabled={updateStatus.isPending}
-                  className={`rounded-md px-3 py-2 text-sm font-medium disabled:opacity-50 ${VARIANT_CLASSES[variant]}`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          )}
+          <div className="flex flex-wrap gap-2">
+            {buttons.map(({ label, next, variant }) => (
+              <button
+                key={next}
+                onClick={() => handleStatusChange(next)}
+                disabled={updateStatus.isPending}
+                className={`rounded-md px-3 py-2 text-sm font-medium disabled:opacity-50 ${VARIANT_CLASSES[variant]}`}
+              >
+                {label}
+              </button>
+            ))}
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              className="flex items-center gap-1.5 rounded-md border border-red-200 px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+            >
+              <Trash2 size={14} />
+              Eliminar
+            </button>
+          </div>
         </div>
       </div>
 
@@ -222,6 +239,47 @@ export function WorkOrderDetail({ workOrder }: WorkOrderDetailProps) {
           </div>
         )}
       </div>
+
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-sm rounded-xl bg-white shadow-xl p-6">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100">
+                <Trash2 size={18} className="text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900">Eliminar obra</h3>
+                <p className="text-xs text-gray-500">
+                  {workOrder.work_order_number}
+                </p>
+              </div>
+            </div>
+            <p className="text-sm text-gray-600 mb-5">
+              Esta acción es permanente y no se puede deshacer. Se eliminarán las
+              tareas, certificaciones y albaranes asociados, y se liberará el stock
+              reservado. ¿Confirmas que quieres eliminar esta obra?
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={deleteWorkOrder.isPending}
+                className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={deleteWorkOrder.isPending}
+                className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleteWorkOrder.isPending ? 'Eliminando...' : 'Eliminar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -97,10 +97,8 @@ export interface WorkOrderPreview {
     quantity: number
     unit: string
     stock_available: number
-    enough_stock: boolean
     inventory_item_id: string | null
   }>
-  warnings: string[]
   total_estimated_cost: number
 }
 
