@@ -143,6 +143,9 @@ export function WorkOrderKPIPanel({ kpis }: WorkOrderKPIPanelProps) {
           <MarginSemaphore pct={kpis.margin_real_pct} />
         </div>
         <p className="mt-1 text-xs text-gray-400">
+          sobre {kpis.total_certified > 0 ? 'certificado' : 'presupuestado'}
+        </p>
+        <p className="mt-0.5 text-xs text-gray-400">
           {kpis.total_purchase_orders} pedido
           {kpis.total_purchase_orders !== 1 ? 's' : ''} vinculado
           {kpis.total_purchase_orders !== 1 ? 's' : ''}

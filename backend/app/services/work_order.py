@@ -986,9 +986,12 @@ class WorkOrderService:
                     total_invoiced += cert_amount
 
         pending_to_certify = budget_total - total_certified
+        # Use certified revenue as the income base when available; fall back to
+        # budget_total for works still in progress with no certifications yet.
+        revenue_base = total_certified if total_certified > 0 else budget_total
         margin_real = (
-            (budget_total - actual_cost) / budget_total * 100
-            if budget_total > 0
+            (revenue_base - actual_cost) / revenue_base * 100
+            if revenue_base > 0
             else Decimal("0.0")
         )
 

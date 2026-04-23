@@ -81,6 +81,35 @@ export interface PendingBudgetItem {
   days_since_sent: number
 }
 
+export interface WorkOrderProfitabilityItem {
+  work_order_id: string
+  work_order_number: string
+  customer_name: string
+  budgeted_hours: number
+  actual_hours: number
+  budgeted_material_cost: number
+  actual_material_cost: number
+  budgeted_revenue: number
+  total_certified: number
+  revenue_base: number
+  margin_pct: number | null
+}
+
+export interface CashFlowBucket {
+  bucket: string
+  label: string
+  amount: number
+  invoice_count: number
+}
+
+export interface TopDebtorCustomer {
+  customer_id: string
+  customer_name: string
+  total_overdue: number
+  invoice_count: number
+  avg_days_overdue: number
+}
+
 export interface DashboardSummary {
   date_from: string
   date_to: string
@@ -95,6 +124,9 @@ export interface DashboardSummary {
   pending_budgets: PendingBudgetItem[]
   low_stock_items_count: number
   recent_activity: RecentActivityItem[]
+  work_order_profitability: WorkOrderProfitabilityItem[]
+  cash_flow_buckets: CashFlowBucket[]
+  top_debtors: TopDebtorCustomer[]
 }
 
 export interface RecentActivityItem {
