@@ -7,7 +7,7 @@ from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.budget import Budget, BudgetLine
+from app.models.budget import Budget, BudgetLine, BudgetSection
 from app.repositories.base import BaseRepository
 
 
@@ -46,6 +46,7 @@ class BudgetRepository(BaseRepository[Budget]):
         stmt = select(Budget).options(
             selectinload(Budget.customer),
             selectinload(Budget.lines),
+            selectinload(Budget.sections),
         )
         count_stmt = select(func.count()).select_from(Budget)
 
@@ -91,14 +92,15 @@ class BudgetRepository(BaseRepository[Budget]):
         return list(rows.scalars().all()), total_result.scalar_one()
 
     async def get_with_full_detail(self, budget_id: uuid.UUID) -> Budget | None:
-        """Eager-loads customer (with addresses), site_visit, lines with inventory_item, and child_budgets."""
-        from app.models.customer import Customer, CustomerAddress
+        """Eager-loads customer (with addresses), site_visit, sections, lines with inventory_item, and child_budgets."""
+        from app.models.customer import Customer
 
         stmt = (
             select(Budget)
             .options(
                 selectinload(Budget.customer).selectinload(Customer.addresses),
                 selectinload(Budget.site_visit),
+                selectinload(Budget.sections),
                 selectinload(Budget.lines).selectinload(BudgetLine.inventory_item),
                 selectinload(Budget.child_budgets),
                 selectinload(Budget.parent_budget),
@@ -123,7 +125,10 @@ class BudgetRepository(BaseRepository[Budget]):
         # Get all budgets that share this root (either are the root or have it as parent)
         stmt = (
             select(Budget)
-            .options(selectinload(Budget.lines))
+            .options(
+                selectinload(Budget.lines),
+                selectinload(Budget.sections),
+            )
             .where(
                 or_(
                     Budget.id == root_id,
@@ -142,7 +147,10 @@ class BudgetRepository(BaseRepository[Budget]):
         """For customer timeline — eager-loads lines for total calculation."""
         stmt = (
             select(Budget)
-            .options(selectinload(Budget.lines))
+            .options(
+                selectinload(Budget.lines),
+                selectinload(Budget.sections),
+            )
             .where(Budget.customer_id == customer_id)
         )
         if latest_only:
@@ -170,3 +178,25 @@ class BudgetRepository(BaseRepository[Budget]):
 class BudgetLineRepository(BaseRepository[BudgetLine]):
     def __init__(self, session: AsyncSession, tenant_id: uuid.UUID | None = None):
         super().__init__(BudgetLine, session, tenant_id)
+
+
+class BudgetSectionRepository(BaseRepository[BudgetSection]):
+    def __init__(self, session: AsyncSession, tenant_id: uuid.UUID | None = None):
+        super().__init__(BudgetSection, session, tenant_id)
+
+    async def list_by_budget(self, budget_id: uuid.UUID) -> list[BudgetSection]:
+        stmt = (
+            select(BudgetSection)
+            .where(BudgetSection.budget_id == budget_id)
+            .order_by(BudgetSection.sort_order.asc())
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def next_sort_order(self, budget_id: uuid.UUID) -> int:
+        stmt = select(func.coalesce(func.max(BudgetSection.sort_order), -1)).where(
+            BudgetSection.budget_id == budget_id
+        )
+        result = await self.session.execute(stmt)
+        current_max = result.scalar() or -1
+        return int(current_max) + 1

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Routes, Route, useMatch, useParams } from 'react-router-dom'
-import { FileText, Plus, Search } from 'lucide-react'
+import { Routes, Route, useMatch, useNavigate, useParams } from 'react-router-dom'
+import { FileText, LayoutTemplate, Plus, Search } from 'lucide-react'
 import { cn } from '@/shared/utils/cn'
 import { useBudgetStore, PAGE_SIZE_OPTIONS } from '../store/budget-store'
 import type { PageSize } from '../store/budget-store'
@@ -9,6 +9,7 @@ import { BudgetList } from './BudgetList'
 import { BudgetDetail } from './BudgetDetail'
 import { BudgetForm } from './BudgetForm'
 import { BudgetFromVisitForm } from './BudgetFromVisitForm'
+import { TemplatesManager } from './TemplatesManager'
 import type { BudgetStatus } from '../types'
 
 const STATUS_OPTIONS: { value: BudgetStatus; label: string }[] = [
@@ -43,6 +44,7 @@ function BudgetDetailRoute() {
 }
 
 export function BudgetsPage() {
+  const navigate = useNavigate()
   const [newBudgetMode, setNewBudgetMode] = useState<NewBudgetMode>(null)
   const [showModeSelector, setShowModeSelector] = useState(false)
   const {
@@ -58,6 +60,11 @@ export function BudgetsPage() {
     setPageSize,
   } = useBudgetStore()
 
+  const templatesMatch = useMatch('/presupuestos/plantillas')
+  const detailMatch = useMatch('/presupuestos/:budgetId')
+  const isTemplatesView = !!templatesMatch
+  const isDetailSelected = !isTemplatesView && !!detailMatch
+
   const { data, isLoading } = useBudgets({
     q: searchQuery || undefined,
     status: statusFilter ?? undefined,
@@ -66,10 +73,12 @@ export function BudgetsPage() {
     limit: pageSize,
   })
 
+  if (isTemplatesView) {
+    return <TemplatesManager />
+  }
+
   const budgets = data?.items ?? []
   const totalPages = data ? Math.ceil(data.total / pageSize) : 1
-  const detailMatch = useMatch('/presupuestos/:budgetId')
-  const isDetailSelected = !!detailMatch
 
   return (
     <div className="flex h-full overflow-hidden">
@@ -92,7 +101,16 @@ export function BudgetsPage() {
                 <span className="text-sm text-gray-400">({data.total})</span>
               )}
             </div>
-            <div className="relative">
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => navigate('/presupuestos/plantillas')}
+                title="Plantillas"
+                className="flex items-center gap-1.5 rounded-md border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 text-sm font-medium text-indigo-700 hover:bg-indigo-100"
+              >
+                <LayoutTemplate size={14} />
+                <span className="hidden sm:inline">Plantillas</span>
+              </button>
+              <div className="relative">
               <button
                 onClick={() => setShowModeSelector(!showModeSelector)}
                 className="flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
@@ -123,6 +141,7 @@ export function BudgetsPage() {
                   </button>
                 </div>
               )}
+              </div>
             </div>
           </div>
 

@@ -7,6 +7,7 @@ export interface BudgetLine {
   budget_id: string
   line_type: BudgetLineType
   sort_order: number
+  section_id: string | null
   description: string
   inventory_item_id: string | null
   inventory_item_name: string | null
@@ -20,6 +21,24 @@ export interface BudgetLine {
   margin_amount: number
 }
 
+export interface BudgetSection {
+  id: string
+  budget_id: string
+  name: string
+  notes: string | null
+  sort_order: number
+  subtotal: number
+  total_cost: number
+  lines_count: number
+}
+
+export interface BudgetSectionTotals {
+  section_id: string | null
+  subtotal: number
+  total_cost: number
+  lines_count: number
+}
+
 export interface BudgetTotals {
   subtotal_before_discount: number
   discount_amount: number
@@ -30,6 +49,19 @@ export interface BudgetTotals {
   gross_margin: number
   gross_margin_pct: number
   margin_status: MarginStatus
+  sections: BudgetSectionTotals[]
+}
+
+export interface BudgetSectionCreatePayload {
+  name: string
+  notes?: string | null
+  sort_order?: number
+}
+
+export interface BudgetSectionUpdatePayload {
+  name?: string
+  notes?: string | null
+  sort_order?: number
 }
 
 export interface BudgetVersionInfo {
@@ -71,6 +103,7 @@ export interface Budget extends BudgetSummary {
   notes: string | null
   client_notes: string | null
   lines: BudgetLine[]
+  sections: BudgetSection[]
   totals: BudgetTotals
   versions: BudgetVersionInfo[]
   updated_at: string
@@ -116,6 +149,7 @@ export interface BudgetFilters {
 export interface BudgetLineCreatePayload {
   line_type: BudgetLineType
   description: string
+  section_id?: string | null
   inventory_item_id?: string | null
   quantity: number
   unit?: string | null
@@ -127,6 +161,7 @@ export interface BudgetLineCreatePayload {
 
 export interface BudgetLineUpdatePayload {
   description?: string
+  section_id?: string | null
   quantity?: number
   unit?: string | null
   unit_price?: number
@@ -164,4 +199,98 @@ export interface BudgetUpdatePayload {
   discount_pct?: number | null
   notes?: string | null
   client_notes?: string | null
+}
+
+// ── Templates ─────────────────────────────────────────────────────────────────
+
+export interface BudgetTemplateSectionInfo {
+  id: string
+  template_id: string
+  name: string
+  notes: string | null
+  sort_order: number
+}
+
+export interface BudgetTemplateLineInfo {
+  id: string
+  template_id: string
+  section_id: string | null
+  line_type: BudgetLineType
+  sort_order: number
+  description: string
+  inventory_item_id: string | null
+  quantity: number
+  unit: string | null
+  unit_price: number
+  unit_cost: number
+  line_discount_pct: number
+}
+
+export interface BudgetTemplateSummary {
+  id: string
+  name: string
+  description: string | null
+  sections_count: number
+  lines_count: number
+  estimated_total: number
+  created_at: string
+  updated_at: string
+}
+
+export interface BudgetTemplate extends BudgetTemplateSummary {
+  sections: BudgetTemplateSectionInfo[]
+  lines: BudgetTemplateLineInfo[]
+}
+
+export interface BudgetTemplateCreatePayload {
+  name: string
+  description?: string | null
+  sections: Array<{
+    name: string
+    notes?: string | null
+    sort_order?: number
+  }>
+  lines: Array<{
+    line_type: BudgetLineType
+    description: string
+    section_index?: number | null
+    inventory_item_id?: string | null
+    quantity: number
+    unit?: string | null
+    unit_price: number
+    unit_cost?: number
+    line_discount_pct?: number
+    sort_order?: number
+  }>
+}
+
+export interface BudgetTemplateUpdatePayload {
+  name?: string
+  description?: string | null
+}
+
+// ── Import ────────────────────────────────────────────────────────────────────
+
+export interface ImportLineRow {
+  section: string | null
+  line_type: BudgetLineType
+  description: string
+  quantity: number
+  unit: string | null
+  unit_price: number
+  unit_cost: number
+  line_discount_pct: number
+}
+
+export interface ImportError {
+  row_number: number
+  field: string | null
+  message: string
+}
+
+export interface ImportPreview {
+  valid_rows: ImportLineRow[]
+  errors: ImportError[]
+  sections_detected: string[]
+  total_rows: number
 }

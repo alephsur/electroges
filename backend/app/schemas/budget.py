@@ -14,11 +14,34 @@ class _ResponseBase(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+# ── Sections ──────────────────────────────────────────────────────────────────
+
+class BudgetSectionCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=255)
+    notes: str | None = None
+    sort_order: int | None = None
+
+
+class BudgetSectionUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=255)
+    notes: str | None = None
+    sort_order: int | None = None
+
+
+class ReorderSectionsRequest(BaseModel):
+    section_ids: list[UUID]
+
+
+class AssignLineToSectionRequest(BaseModel):
+    section_id: UUID | None = None
+
+
 # ── Lines ─────────────────────────────────────────────────────────────────────
 
 class BudgetLineCreate(BaseModel):
     line_type: Literal["labor", "material", "other"]
     description: str
+    section_id: UUID | None = None
     inventory_item_id: UUID | None = None
     quantity: Decimal = Field(gt=0)
     unit: str | None = None
@@ -30,6 +53,7 @@ class BudgetLineCreate(BaseModel):
 
 class BudgetLineUpdate(BaseModel):
     description: str | None = None
+    section_id: UUID | None = None
     quantity: Decimal | None = Field(default=None, gt=0)
     unit: str | None = None
     unit_price: Decimal | None = Field(default=None, ge=0)
@@ -44,6 +68,7 @@ class BudgetLinePublicResponse(_ResponseBase):
     id: UUID
     line_type: str
     sort_order: int
+    section_id: UUID | None
     description: str
     inventory_item_id: UUID | None
     inventory_item_name: str | None
@@ -64,6 +89,15 @@ class BudgetLineInternalResponse(BudgetLinePublicResponse):
 
 # ── Totals ────────────────────────────────────────────────────────────────────
 
+class BudgetSectionTotals(_ResponseBase):
+    """Per-section subtotals — calculated at runtime."""
+
+    section_id: UUID | None  # None for the implicit "no section" bucket
+    subtotal: float  # sum of line subtotals (already discounted per line)
+    total_cost: float
+    lines_count: int
+
+
 class BudgetTotals(_ResponseBase):
     """Economic totals — always calculated at runtime, never persisted."""
 
@@ -78,6 +112,19 @@ class BudgetTotals(_ResponseBase):
     gross_margin_pct: float
     # Margin traffic light — internal UI only
     margin_status: Literal["red", "amber", "green"]
+    # Per-section breakdown
+    sections: list[BudgetSectionTotals] = []
+
+
+class BudgetSectionResponse(_ResponseBase):
+    id: UUID
+    budget_id: UUID
+    name: str
+    notes: str | None
+    sort_order: int
+    subtotal: float
+    total_cost: float
+    lines_count: int
 
 
 # ── Budget ────────────────────────────────────────────────────────────────────
@@ -164,6 +211,7 @@ class BudgetResponse(BudgetSummary):
     notes: str | None
     client_notes: str | None
     lines: list[BudgetLineInternalResponse] = []
+    sections: list[BudgetSectionResponse] = []
     totals: BudgetTotals
     versions: list[BudgetVersionInfo] = []
     updated_at: datetime

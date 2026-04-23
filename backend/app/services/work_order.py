@@ -174,6 +174,11 @@ class WorkOrderService:
         material_lines = [l for l in budget.lines if l.line_type.value == "material"]
         other_lines = [l for l in budget.lines if l.line_type.value == "other"]
 
+        # Build section_id -> name map to prefix tasks when the budget uses chapters
+        section_names: dict[uuid.UUID, str] = {
+            s.id: s.name for s in budget.sections
+        }
+
         # Create tasks from labor lines
         tasks_by_line_id: dict[uuid.UUID, Task] = {}
         for i, line in enumerate(labor_lines):
@@ -181,10 +186,13 @@ class WorkOrderService:
             line_subtotal = line.quantity * line.unit_price
             if line.line_discount_pct > 0:
                 line_subtotal *= 1 - line.line_discount_pct / 100
+            task_name = line.description
+            if line.section_id and line.section_id in section_names:
+                task_name = f"[{section_names[line.section_id]}] {task_name}"
             task = Task(
                 work_order_id=work_order.id,
                 origin_budget_line_id=line.id,
-                name=line.description,
+                name=task_name,
                 unit_price=line_subtotal.quantize(Decimal("0.01")),
                 estimated_hours=line.quantity,
                 sort_order=i,

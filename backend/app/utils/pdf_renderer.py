@@ -138,12 +138,18 @@ def render_invoice_pdf_html(invoice, company, totals) -> str:
     )
 
 
-def render_budget_pdf_html(budget, company, totals, customer, address, lines) -> str:
+def render_budget_pdf_html(
+    budget, company, totals, customer, address, lines, groups=None
+) -> str:
     """
     Renders the budget PDF HTML using the Jinja2 template.
 
     IMPORTANT: `lines` must be BudgetLinePublicResponse instances —
     they must NOT contain unit_cost or margin fields.
+
+    `groups` is an optional list of dicts {name, subtotal, lines} for
+    chapter/section rendering. When None or empty, the template falls back to
+    a single flat table of `lines` (backward compatible).
     """
     env = _get_jinja_env()
     template = env.get_template("budget_pdf.html")
@@ -159,6 +165,7 @@ def render_budget_pdf_html(budget, company, totals, customer, address, lines) ->
         customer=customer,
         address=address,
         lines=lines,
+        groups=groups or [],
         has_line_discounts=has_line_discounts,
         logo_abs_path=logo_abs_path,
     )
