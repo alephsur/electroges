@@ -1,6 +1,15 @@
 export type CustomerType = 'individual' | 'company' | 'community'
 export type AddressType = 'fiscal' | 'service'
-export type DocumentType = 'contract' | 'id_document' | 'authorization' | 'other'
+export type DocumentType =
+  | 'contract'
+  | 'id_document'
+  | 'authorization'
+  | 'ci_bt'
+  | 'mtd_bt'
+  | 'dr_ttc'
+  | 'cert_fin_obra'
+  | 'sol_iebt'
+  | 'other'
 
 export interface CustomerAddress {
   id: string

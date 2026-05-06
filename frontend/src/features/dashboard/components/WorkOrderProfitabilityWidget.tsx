@@ -61,11 +61,9 @@ function CompareBar({
 function RevenuePill({
   budgeted,
   certified,
-  revenueBase,
 }: {
   budgeted: number
   certified: number
-  revenueBase: number
 }) {
   const hasCertified = certified > 0
   const deviated = hasCertified && Math.abs(certified - budgeted) > 0.01
@@ -172,7 +170,6 @@ export function WorkOrderProfitabilityWidget({ items }: Props) {
                     <RevenuePill
                       budgeted={item.budgeted_revenue}
                       certified={item.total_certified}
-                      revenueBase={item.revenue_base}
                     />
                   </td>
                   <td className="px-4 py-2.5 text-right">

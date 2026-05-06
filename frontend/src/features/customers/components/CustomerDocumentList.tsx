@@ -1,21 +1,23 @@
 import { useRef, useState } from 'react'
-import { FileText, Download, Trash2, Upload } from 'lucide-react'
+import { FileText, Download, Trash2, Upload, Filter } from 'lucide-react'
 import { useUploadDocument, useDeleteDocument } from '../hooks/use-customers'
 import type { CustomerDocument } from '../types'
 
-const DOCUMENT_TYPE_OPTIONS = [
-  { value: 'contract', label: 'Contrato' },
-  { value: 'id_document', label: 'DNI / CIF' },
-  { value: 'authorization', label: 'Autorización' },
-  { value: 'other', label: 'Otro' },
+const DOCUMENT_TYPE_OPTIONS: { value: string; label: string; group: string }[] = [
+  { value: 'contract', label: 'Contrato', group: 'General' },
+  { value: 'id_document', label: 'DNI / CIF', group: 'General' },
+  { value: 'authorization', label: 'Autorización', group: 'General' },
+  { value: 'other', label: 'Otro', group: 'General' },
+  { value: 'ci_bt', label: 'Certificado de Instalación BT (CI-BT)', group: 'Documentación eléctrica' },
+  { value: 'mtd_bt', label: 'Memoria Técnica de Diseño BT (MTD-BT)', group: 'Documentación eléctrica' },
+  { value: 'dr_ttc', label: 'Declaración Responsable (DR-TTC)', group: 'Documentación eléctrica' },
+  { value: 'cert_fin_obra', label: 'Certificado de Fin de Obra', group: 'Documentación eléctrica' },
+  { value: 'sol_iebt', label: 'Solicitud de Inspección (SOL-IEBT)', group: 'Documentación eléctrica' },
 ]
 
-const DOCUMENT_TYPE_LABELS: Record<string, string> = {
-  contract: 'Contrato',
-  id_document: 'DNI / CIF',
-  authorization: 'Autorización',
-  other: 'Otro',
-}
+const DOCUMENT_TYPE_LABELS: Record<string, string> = Object.fromEntries(
+  DOCUMENT_TYPE_OPTIONS.map((o) => [o.value, o.label]),
+)
 
 function formatFileSize(bytes: number | null): string {
   if (bytes == null) return '—'
@@ -32,6 +34,7 @@ interface CustomerDocumentListProps {
 export function CustomerDocumentList({ customerId, documents }: CustomerDocumentListProps) {
   const [isDragging, setIsDragging] = useState(false)
   const [selectedType, setSelectedType] = useState('other')
+  const [filterType, setFilterType] = useState<string>('all')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const uploadDocument = useUploadDocument(customerId)
@@ -48,12 +51,52 @@ export function CustomerDocumentList({ customerId, documents }: CustomerDocument
     if (file) handleFile(file)
   }
 
+  const filteredDocuments =
+    filterType === 'all' ? documents : documents.filter((d) => d.document_type === filterType)
+
+  const groups = Array.from(new Set(DOCUMENT_TYPE_OPTIONS.map((o) => o.group)))
+
   return (
     <div className="space-y-4">
-      {/* Documents list */}
+      {/* Filter bar */}
       {documents.length > 0 && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <Filter size={13} className="text-gray-400 shrink-0" />
+          <button
+            onClick={() => setFilterType('all')}
+            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+              filterType === 'all'
+                ? 'bg-brand-600 text-white'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            Todos ({documents.length})
+          </button>
+          {DOCUMENT_TYPE_OPTIONS.filter((opt) =>
+            documents.some((d) => d.document_type === opt.value),
+          ).map((opt) => {
+            const count = documents.filter((d) => d.document_type === opt.value).length
+            return (
+              <button
+                key={opt.value}
+                onClick={() => setFilterType(opt.value)}
+                className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                  filterType === opt.value
+                    ? 'bg-brand-600 text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                {opt.label} ({count})
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Documents list */}
+      {filteredDocuments.length > 0 && (
         <div className="space-y-2">
-          {documents.map((doc) => (
+          {filteredDocuments.map((doc) => (
             <div
               key={doc.id}
               className="flex items-center gap-3 border border-gray-200 rounded-lg p-3 bg-white"
@@ -93,19 +136,29 @@ export function CustomerDocumentList({ customerId, documents }: CustomerDocument
         </div>
       )}
 
+      {filteredDocuments.length === 0 && documents.length > 0 && (
+        <p className="text-sm text-gray-400 text-center py-4">
+          No hay documentos de este tipo.
+        </p>
+      )}
+
       {/* Upload zone */}
       <div className="space-y-2">
         <div className="flex items-center gap-3">
-          <label className="text-xs font-medium text-gray-600">Tipo de documento</label>
+          <label className="text-xs font-medium text-gray-600 shrink-0">Tipo de documento</label>
           <select
             value={selectedType}
             onChange={(e) => setSelectedType(e.target.value)}
             className="border border-gray-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
           >
-            {DOCUMENT_TYPE_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
+            {groups.map((group) => (
+              <optgroup key={group} label={group}>
+                {DOCUMENT_TYPE_OPTIONS.filter((o) => o.group === group).map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </optgroup>
             ))}
           </select>
         </div>
