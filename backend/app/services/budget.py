@@ -13,13 +13,18 @@ from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.models.budget import Budget, BudgetLine, BudgetStatus
-from app.repositories.budget import BudgetLineRepository, BudgetRepository
+from app.models.budget import Budget, BudgetLine, BudgetSection, BudgetStatus
+from app.repositories.budget import (
+    BudgetLineRepository,
+    BudgetRepository,
+    BudgetSectionRepository,
+)
 from app.repositories.company_settings import CompanySettingsRepository
 from app.repositories.customer import CustomerRepository
 from app.repositories.inventory_item import InventoryItemRepository
 from app.repositories.site_visit import SiteVisitRepository
 from app.schemas.budget import (
+    AssignLineToSectionRequest,
     BudgetCreate,
     BudgetFromVisitRequest,
     BudgetLineCreate,
@@ -27,11 +32,16 @@ from app.schemas.budget import (
     BudgetLinePublicResponse,
     BudgetListResponse,
     BudgetResponse,
+    BudgetSectionCreate,
+    BudgetSectionResponse,
+    BudgetSectionTotals,
+    BudgetSectionUpdate,
     BudgetSummary,
     BudgetTotals,
     BudgetUpdate,
     BudgetVersionInfo,
     ReorderLinesRequest,
+    ReorderSectionsRequest,
     WorkOrderPreview,
 )
 
@@ -44,6 +54,7 @@ class BudgetService:
         self._tenant_id = tenant_id
         self._repo = BudgetRepository(session, tenant_id)
         self._line_repo = BudgetLineRepository(session, tenant_id)
+        self._section_repo = BudgetSectionRepository(session, tenant_id)
         self._company_repo = CompanySettingsRepository(session, tenant_id)
         self._customer_repo = CustomerRepository(session, tenant_id)
         self._item_repo = InventoryItemRepository(session, tenant_id)
@@ -255,6 +266,126 @@ class BudgetService:
         await self._session.commit()
         return await self.get_budget(budget_id)
 
+    # ── Sections ───────────────────────────────────────────────────────────────
+
+    async def _ensure_draft(self, budget_id: uuid.UUID) -> Budget:
+        budget = await self._repo.get_by_id(budget_id)
+        if not budget:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Presupuesto no encontrado",
+            )
+        if budget.status != BudgetStatus.DRAFT:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Solo se pueden modificar secciones en presupuestos en borrador",
+            )
+        return budget
+
+    async def create_section(
+        self, budget_id: uuid.UUID, data: BudgetSectionCreate
+    ) -> BudgetSectionResponse:
+        await self._ensure_draft(budget_id)
+        sort_order = data.sort_order
+        if sort_order is None:
+            sort_order = await self._section_repo.next_sort_order(budget_id)
+        section = BudgetSection(
+            budget_id=budget_id,
+            name=data.name,
+            notes=data.notes,
+            sort_order=sort_order,
+        )
+        section = await self._section_repo.create(section)
+        await self._session.commit()
+        logger.info("Section created budget_id=%s section_id=%s", budget_id, section.id)
+        return BudgetSectionResponse(
+            id=section.id,
+            budget_id=section.budget_id,
+            name=section.name,
+            notes=section.notes,
+            sort_order=section.sort_order,
+            subtotal=0.0,
+            total_cost=0.0,
+            lines_count=0,
+        )
+
+    async def update_section(
+        self,
+        budget_id: uuid.UUID,
+        section_id: uuid.UUID,
+        data: BudgetSectionUpdate,
+    ) -> BudgetSectionResponse:
+        await self._ensure_draft(budget_id)
+        section = await self._section_repo.get_by_id(section_id)
+        if not section or section.budget_id != budget_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Sección no encontrada en este presupuesto",
+            )
+        await self._section_repo.update(section, data.model_dump(exclude_none=True))
+        await self._session.commit()
+        budget = await self._repo.get_with_full_detail(budget_id)
+        totals = self._calculate_totals(budget)
+        totals_by_section = {row.section_id: row for row in totals.sections}
+        return self._build_section_response(section, totals_by_section)
+
+    async def delete_section(
+        self, budget_id: uuid.UUID, section_id: uuid.UUID
+    ) -> None:
+        """Delete a section. Lines in the section are preserved with section_id=NULL."""
+        await self._ensure_draft(budget_id)
+        section = await self._section_repo.get_by_id(section_id)
+        if not section or section.budget_id != budget_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Sección no encontrada en este presupuesto",
+            )
+        # ON DELETE SET NULL takes care of orphan lines
+        await self._section_repo.delete(section)
+        await self._session.commit()
+        logger.info("Section deleted budget_id=%s section_id=%s", budget_id, section_id)
+
+    async def reorder_sections(
+        self, budget_id: uuid.UUID, data: ReorderSectionsRequest
+    ) -> BudgetResponse:
+        await self._ensure_draft(budget_id)
+        for i, section_id in enumerate(data.section_ids):
+            await self._session.execute(
+                update(BudgetSection)
+                .where(BudgetSection.id == section_id)
+                .where(BudgetSection.budget_id == budget_id)
+                .values(sort_order=i)
+            )
+        await self._session.commit()
+        return await self.get_budget(budget_id)
+
+    async def assign_line_to_section(
+        self,
+        budget_id: uuid.UUID,
+        line_id: uuid.UUID,
+        data: AssignLineToSectionRequest,
+    ) -> BudgetLineInternalResponse:
+        await self._ensure_draft(budget_id)
+        line = await self._line_repo.get_by_id(line_id)
+        if not line or line.budget_id != budget_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Línea no encontrada en este presupuesto",
+            )
+        if data.section_id is not None:
+            section = await self._section_repo.get_by_id(data.section_id)
+            if not section or section.budget_id != budget_id:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="La sección indicada no pertenece a este presupuesto",
+                )
+        await self._line_repo.update(line, {"section_id": data.section_id})
+        await self._session.commit()
+        await self._session.refresh(line)
+        if line.inventory_item_id:
+            line.inventory_item = await self._item_repo.get_by_id(line.inventory_item_id)
+        return self._build_line_response(line)
+
     # ── Versioning ─────────────────────────────────────────────────────────────
 
     async def create_new_version(self, budget_id: uuid.UUID) -> BudgetResponse:
@@ -303,12 +434,27 @@ class BudgetService:
         )
         new_budget = await self._repo.create(new_budget)
 
+        # Clone sections first so lines can reference the new section IDs
+        section_id_map: dict[uuid.UUID, uuid.UUID] = {}
+        for old_section in sorted(original.sections, key=lambda s: s.sort_order):
+            cloned = BudgetSection(
+                budget_id=new_budget.id,
+                name=old_section.name,
+                notes=old_section.notes,
+                sort_order=old_section.sort_order,
+            )
+            cloned = await self._section_repo.create(cloned)
+            section_id_map[old_section.id] = cloned.id
+
         for i, line in enumerate(original.lines):
             await self._create_line(
                 new_budget.id,
                 BudgetLineCreate(
                     line_type=line.line_type.value,
                     description=line.description,
+                    section_id=(
+                        section_id_map.get(line.section_id) if line.section_id else None
+                    ),
                     inventory_item_id=line.inventory_item_id,
                     quantity=line.quantity,
                     unit=line.unit,
@@ -444,6 +590,35 @@ class BudgetService:
         # Build public lines (no unit_cost / margin)
         public_lines = [self._build_line_public_response(line) for line in budget.lines]
 
+        # Build groups for chapter rendering (sections + unsectioned bucket at end)
+        groups: list[dict] = []
+        if budget.sections:
+            sorted_sections = sorted(budget.sections, key=lambda s: s.sort_order)
+            for section in sorted_sections:
+                section_lines = [
+                    line for line in public_lines if line.section_id == section.id
+                ]
+                if not section_lines:
+                    continue
+                groups.append(
+                    {
+                        "name": section.name,
+                        "notes": section.notes,
+                        "subtotal": sum(line.subtotal for line in section_lines),
+                        "lines": section_lines,
+                    }
+                )
+            unsectioned = [line for line in public_lines if line.section_id is None]
+            if unsectioned:
+                groups.append(
+                    {
+                        "name": "Sin capítulo",
+                        "notes": None,
+                        "subtotal": sum(line.subtotal for line in unsectioned),
+                        "lines": unsectioned,
+                    }
+                )
+
         # Resolve client address
         address = None
         if budget.customer and budget.customer.addresses:
@@ -460,6 +635,7 @@ class BudgetService:
             customer=budget.customer,
             address=address,
             lines=public_lines,
+            groups=groups,
         )
 
         pdf_bytes = HTML(string=html_content).write_pdf()
@@ -637,18 +813,29 @@ class BudgetService:
 
     def _calculate_totals(self, budget: Budget) -> BudgetTotals:
         """
-        Calculates all budget totals.
+        Calculates all budget totals plus per-section breakdown.
         NEVER persist these values — always calculate at runtime.
         """
         subtotal = Decimal("0.0")
         total_cost = Decimal("0.0")
 
+        # Aggregate per section_id (None = lines with no section)
+        section_subtotals: dict[uuid.UUID | None, Decimal] = {}
+        section_costs: dict[uuid.UUID | None, Decimal] = {}
+        section_counts: dict[uuid.UUID | None, int] = {}
+
         for line in budget.lines:
             line_subtotal = line.quantity * line.unit_price
             if line.line_discount_pct > 0:
                 line_subtotal *= 1 - line.line_discount_pct / 100
+            line_cost = line.quantity * line.unit_cost
             subtotal += line_subtotal
-            total_cost += line.quantity * line.unit_cost
+            total_cost += line_cost
+
+            sid = line.section_id
+            section_subtotals[sid] = section_subtotals.get(sid, Decimal("0.0")) + line_subtotal
+            section_costs[sid] = section_costs.get(sid, Decimal("0.0")) + line_cost
+            section_counts[sid] = section_counts.get(sid, 0) + 1
 
         discount_amount = subtotal * (budget.discount_pct / 100)
         taxable_base = subtotal - discount_amount
@@ -666,6 +853,27 @@ class BudgetService:
         else:
             margin_status = "green"
 
+        # Build per-section totals ordered by section.sort_order, then "no section" at the end
+        section_rows: list[BudgetSectionTotals] = []
+        for section in sorted(budget.sections, key=lambda s: s.sort_order):
+            section_rows.append(
+                BudgetSectionTotals(
+                    section_id=section.id,
+                    subtotal=section_subtotals.get(section.id, Decimal("0.0")).quantize(Decimal("0.01")),
+                    total_cost=section_costs.get(section.id, Decimal("0.0")).quantize(Decimal("0.01")),
+                    lines_count=section_counts.get(section.id, 0),
+                )
+            )
+        if None in section_subtotals:
+            section_rows.append(
+                BudgetSectionTotals(
+                    section_id=None,
+                    subtotal=section_subtotals[None].quantize(Decimal("0.01")),
+                    total_cost=section_costs[None].quantize(Decimal("0.01")),
+                    lines_count=section_counts[None],
+                )
+            )
+
         return BudgetTotals(
             subtotal_before_discount=subtotal.quantize(Decimal("0.01")),
             discount_amount=discount_amount.quantize(Decimal("0.01")),
@@ -676,6 +884,7 @@ class BudgetService:
             gross_margin=gross_margin.quantize(Decimal("0.01")),
             gross_margin_pct=gross_margin_pct.quantize(Decimal("0.01")),
             margin_status=margin_status,
+            sections=section_rows,
         )
 
     def _get_effective_status(self, budget: Budget) -> str:
@@ -694,6 +903,15 @@ class BudgetService:
         """
         line_data = data.model_dump()
         line_data["sort_order"] = sort_order
+
+        # Validate section belongs to this budget if provided
+        if data.section_id is not None:
+            section = await self._section_repo.get_by_id(data.section_id)
+            if not section or section.budget_id != budget_id:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="La sección indicada no pertenece a este presupuesto",
+                )
 
         if data.inventory_item_id and data.line_type == "material":
             item = await self._item_repo.get_by_id(data.inventory_item_id)
@@ -755,6 +973,7 @@ class BudgetService:
             id=line.id,
             line_type=line.line_type.value,
             sort_order=line.sort_order,
+            section_id=line.section_id,
             description=line.description,
             inventory_item_id=line.inventory_item_id,
             inventory_item_name=(
@@ -780,6 +999,7 @@ class BudgetService:
             id=line.id,
             line_type=line.line_type.value,
             sort_order=line.sort_order,
+            section_id=line.section_id,
             description=line.description,
             inventory_item_id=line.inventory_item_id,
             inventory_item_name=(
@@ -795,6 +1015,23 @@ class BudgetService:
             margin_amount=(
                 (line.unit_price - line.unit_cost) * line.quantity
             ).quantize(Decimal("0.01")),
+        )
+
+    def _build_section_response(
+        self,
+        section: BudgetSection,
+        totals_by_section: dict[uuid.UUID | None, BudgetSectionTotals],
+    ) -> BudgetSectionResponse:
+        row = totals_by_section.get(section.id)
+        return BudgetSectionResponse(
+            id=section.id,
+            budget_id=section.budget_id,
+            name=section.name,
+            notes=section.notes,
+            sort_order=section.sort_order,
+            subtotal=row.subtotal if row else 0.0,
+            total_cost=row.total_cost if row else 0.0,
+            lines_count=row.lines_count if row else 0,
         )
 
     def _build_version_info(self, budget: Budget) -> BudgetVersionInfo:
@@ -837,6 +1074,8 @@ class BudgetService:
     def _build_response(self, budget: Budget) -> BudgetResponse:
         totals = self._calculate_totals(budget)
         summary = self._build_summary(budget)
+        totals_by_section = {row.section_id: row for row in totals.sections}
+        ordered_sections = sorted(budget.sections, key=lambda s: s.sort_order)
         return BudgetResponse(
             **summary.model_dump(),
             parent_budget_id=budget.parent_budget_id,
@@ -844,6 +1083,9 @@ class BudgetService:
             notes=budget.notes,
             client_notes=budget.client_notes,
             lines=[self._build_line_response(line) for line in budget.lines],
+            sections=[
+                self._build_section_response(s, totals_by_section) for s in ordered_sections
+            ],
             totals=totals,
             versions=[],
             updated_at=budget.updated_at,

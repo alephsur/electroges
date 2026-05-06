@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FileText, Layers, BarChart2, Download, Send, X, GitBranch, CheckCircle, ArrowLeft, Trash2 } from 'lucide-react'
+import { FileText, Layers, BarChart2, Download, Send, X, GitBranch, CheckCircle, ArrowLeft, Trash2, LayoutTemplate, Save, Upload } from 'lucide-react'
 import type { Budget } from '../types'
 import { useBudgetStore } from '../store/budget-store'
 import {
@@ -18,6 +18,9 @@ import { BudgetLineEditor } from './BudgetLineEditor'
 import { BudgetTotalsPanel } from './BudgetTotalsPanel'
 import { BudgetVersionHistory } from './BudgetVersionHistory'
 import { WorkOrderPreviewModal } from './WorkOrderPreviewModal'
+import { TemplatePickerModal } from './TemplatePickerModal'
+import { SaveAsTemplateModal } from './SaveAsTemplateModal'
+import { ImportLinesModal } from './ImportLinesModal'
 
 interface BudgetDetailProps {
   budget: Budget
@@ -27,6 +30,9 @@ export function BudgetDetail({ budget }: BudgetDetailProps) {
   const { activeTab, setActiveTab } = useBudgetStore()
   const [showPreviewModal, setShowPreviewModal] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false)
+  const [showSaveAsTemplate, setShowSaveAsTemplate] = useState(false)
+  const [showImportModal, setShowImportModal] = useState(false)
   const navigate = useNavigate()
 
   const sendBudget = useSendBudget()
@@ -142,6 +148,29 @@ export function BudgetDetail({ budget }: BudgetDetailProps) {
                 Enviar al cliente
               </button>
               <button
+                onClick={() => setShowTemplatePicker(true)}
+                className="flex items-center gap-1.5 rounded-md border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-100"
+              >
+                <LayoutTemplate size={13} />
+                Aplicar plantilla
+              </button>
+              <button
+                onClick={() => setShowImportModal(true)}
+                className="flex items-center gap-1.5 rounded-md border border-purple-200 bg-purple-50 px-3 py-1.5 text-xs font-medium text-purple-700 hover:bg-purple-100"
+              >
+                <Upload size={13} />
+                Importar CSV/Excel
+              </button>
+              {budget.lines_count > 0 && (
+                <button
+                  onClick={() => setShowSaveAsTemplate(true)}
+                  className="flex items-center gap-1.5 rounded-md border border-gray-300 px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
+                >
+                  <Save size={13} />
+                  Guardar como plantilla
+                </button>
+              )}
+              <button
                 onClick={handleGeneratePdf}
                 disabled={generatePdf.isPending}
                 className="flex items-center gap-1.5 rounded-md border border-gray-300 px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-50"
@@ -175,6 +204,13 @@ export function BudgetDetail({ budget }: BudgetDetailProps) {
               >
                 <GitBranch size={13} />
                 Nueva versión
+              </button>
+              <button
+                onClick={() => setShowSaveAsTemplate(true)}
+                className="flex items-center gap-1.5 rounded-md border border-gray-300 px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
+              >
+                <Save size={13} />
+                Guardar como plantilla
               </button>
               <button
                 onClick={handleGeneratePdf}
@@ -257,11 +293,7 @@ export function BudgetDetail({ budget }: BudgetDetailProps) {
       {/* Tab content */}
       <div className="flex-1 overflow-y-auto p-4">
         {activeTab === 'lineas' && (
-          <BudgetLineEditor
-            budgetId={budget.id}
-            lines={budget.lines}
-            readOnly={!isDraft}
-          />
+          <BudgetLineEditor budget={budget} readOnly={!isDraft} />
         )}
         {activeTab === 'totales' && <BudgetTotalsPanel budget={budget} />}
         {activeTab === 'versiones' && (
@@ -284,6 +316,29 @@ export function BudgetDetail({ budget }: BudgetDetailProps) {
             Cargando vista previa...
           </div>
         </div>
+      )}
+
+      {showTemplatePicker && (
+        <TemplatePickerModal
+          budgetId={budget.id}
+          hasExistingLines={budget.lines_count > 0}
+          onClose={() => setShowTemplatePicker(false)}
+        />
+      )}
+
+      {showSaveAsTemplate && (
+        <SaveAsTemplateModal
+          budgetId={budget.id}
+          budgetNumber={budget.budget_number}
+          onClose={() => setShowSaveAsTemplate(false)}
+        />
+      )}
+
+      {showImportModal && (
+        <ImportLinesModal
+          budgetId={budget.id}
+          onClose={() => setShowImportModal(false)}
+        />
       )}
 
       {showDeleteConfirm && (

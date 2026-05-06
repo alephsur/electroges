@@ -27,6 +27,27 @@ class BudgetLineType(str, enum.Enum):
     OTHER = "other"
 
 
+class BudgetSection(UUIDMixin, TimestampMixin, Base):
+    """Optional chapter/section to group budget lines (e.g. 'Cuadro', 'Distribución')."""
+
+    __tablename__ = "budget_sections"
+
+    budget_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("budgets.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    sort_order: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+
+    budget: Mapped["Budget"] = relationship(back_populates="sections")
+    lines: Mapped[list["BudgetLine"]] = relationship(
+        back_populates="section",
+        order_by="BudgetLine.sort_order",
+    )
+
+
 class Budget(UUIDMixin, TimestampMixin, Base):
     __tablename__ = "budgets"
     __table_args__ = (
@@ -96,6 +117,11 @@ class Budget(UUIDMixin, TimestampMixin, Base):
         cascade="all, delete-orphan",
         order_by="BudgetLine.sort_order",
     )
+    sections: Mapped[list[BudgetSection]] = relationship(
+        back_populates="budget",
+        cascade="all, delete-orphan",
+        order_by="BudgetSection.sort_order",
+    )
     parent_budget: Mapped[Budget | None] = relationship(
         remote_side="Budget.id",
         foreign_keys=[parent_budget_id],
@@ -116,6 +142,12 @@ class BudgetLine(UUIDMixin, TimestampMixin, Base):
 
     budget_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("budgets.id"), nullable=False, index=True
+    )
+    section_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("budget_sections.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
     )
     line_type: Mapped[BudgetLineType] = mapped_column(
         SQLEnum(
@@ -154,6 +186,7 @@ class BudgetLine(UUIDMixin, TimestampMixin, Base):
 
     # Relationships
     budget: Mapped[Budget] = relationship(back_populates="lines")
+    section: Mapped["BudgetSection | None"] = relationship(back_populates="lines")
     inventory_item: Mapped[InventoryItem | None] = relationship()
 
     task: Mapped["Task | None"] = relationship(

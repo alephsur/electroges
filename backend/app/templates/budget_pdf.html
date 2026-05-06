@@ -54,6 +54,21 @@
   .type-material { background: #d1fae5; color: #065f46; }
   .type-other { background: #f3f4f6; color: #374151; }
 
+  /* Section header row */
+  tbody tr.section-header td { background: #eef2ff; color: #1e3a8a;
+                                font-weight: bold; font-size: 10pt;
+                                padding: 7pt 8pt; border-top: 1pt solid #c7d2fe;
+                                border-bottom: 1pt solid #c7d2fe; text-align: left; }
+  tbody tr.section-header .section-notes { display: block; font-weight: normal;
+                                            font-size: 8pt; color: #4b5563;
+                                            margin-top: 2pt; }
+  tbody tr.section-subtotal td { background: #f8fafc; font-weight: 600;
+                                  font-size: 9pt; padding: 5pt 8pt;
+                                  border-top: 0.5pt solid #cbd5e1;
+                                  border-bottom: 1pt solid #cbd5e1; }
+  tbody tr.section-subtotal td.label { text-align: right; color: #334155; }
+  tbody tr.section-subtotal td.value { text-align: right; color: #1e293b; }
+
   /* Totals */
   .totals-block { margin-left: auto; width: 220pt; margin-bottom: 16pt; }
   .totals-row { display: flex; justify-content: space-between;
@@ -130,6 +145,7 @@
 </div>
 
 <!-- LINES TABLE — no internal costs exposed -->
+{% set total_cols = 6 if has_line_discounts else 5 %}
 <table>
   <thead>
     <tr>
@@ -144,27 +160,65 @@
     </tr>
   </thead>
   <tbody>
-    {% for line in lines %}
-    <tr>
-      <td>
-        <span class="type-badge type-{{ line.line_type }}">
-          {% if line.line_type == 'labor' %}Mano de obra
-          {% elif line.line_type == 'material' %}Material
-          {% else %}Partida{% endif %}
-        </span><br>
-        {{ line.description }}
-      </td>
-      <td style="text-align:center">{{ line.quantity | number }}</td>
-      <td style="text-align:center">{{ line.unit or '' }}</td>
-      <td style="text-align:right">{{ line.unit_price | currency }}</td>
-      {% if has_line_discounts %}
-        <td style="text-align:right">
-          {% if line.line_discount_pct > 0 %}{{ line.line_discount_pct }}%{% endif %}
+    {% if groups %}
+      {% for group in groups %}
+        <tr class="section-header">
+          <td colspan="{{ total_cols }}">
+            {{ group.name }}
+            {% if group.notes %}
+              <span class="section-notes">{{ group.notes }}</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% for line in group.lines %}
+        <tr>
+          <td>
+            <span class="type-badge type-{{ line.line_type }}">
+              {% if line.line_type == 'labor' %}Mano de obra
+              {% elif line.line_type == 'material' %}Material
+              {% else %}Partida{% endif %}
+            </span><br>
+            {{ line.description }}
+          </td>
+          <td style="text-align:center">{{ line.quantity | number }}</td>
+          <td style="text-align:center">{{ line.unit or '' }}</td>
+          <td style="text-align:right">{{ line.unit_price | currency }}</td>
+          {% if has_line_discounts %}
+            <td style="text-align:right">
+              {% if line.line_discount_pct > 0 %}{{ line.line_discount_pct }}%{% endif %}
+            </td>
+          {% endif %}
+          <td style="text-align:right">{{ line.subtotal | currency }}</td>
+        </tr>
+        {% endfor %}
+        <tr class="section-subtotal">
+          <td class="label" colspan="{{ total_cols - 1 }}">Subtotal {{ group.name }}</td>
+          <td class="value">{{ group.subtotal | currency }}</td>
+        </tr>
+      {% endfor %}
+    {% else %}
+      {% for line in lines %}
+      <tr>
+        <td>
+          <span class="type-badge type-{{ line.line_type }}">
+            {% if line.line_type == 'labor' %}Mano de obra
+            {% elif line.line_type == 'material' %}Material
+            {% else %}Partida{% endif %}
+          </span><br>
+          {{ line.description }}
         </td>
-      {% endif %}
-      <td style="text-align:right">{{ line.subtotal | currency }}</td>
-    </tr>
-    {% endfor %}
+        <td style="text-align:center">{{ line.quantity | number }}</td>
+        <td style="text-align:center">{{ line.unit or '' }}</td>
+        <td style="text-align:right">{{ line.unit_price | currency }}</td>
+        {% if has_line_discounts %}
+          <td style="text-align:right">
+            {% if line.line_discount_pct > 0 %}{{ line.line_discount_pct }}%{% endif %}
+          </td>
+        {% endif %}
+        <td style="text-align:right">{{ line.subtotal | currency }}</td>
+      </tr>
+      {% endfor %}
+    {% endif %}
   </tbody>
 </table>
 

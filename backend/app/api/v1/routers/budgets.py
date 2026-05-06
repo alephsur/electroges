@@ -5,9 +5,11 @@ from datetime import date
 
 from fastapi import APIRouter, File, Query, UploadFile, status
 from fastapi.responses import Response
+from pydantic import BaseModel
 
 from app.core.dependencies import CurrentTenantId, CurrentUser, DbSession
 from app.schemas.budget import (
+    AssignLineToSectionRequest,
     BudgetCreate,
     BudgetFromVisitRequest,
     BudgetLineCreate,
@@ -15,13 +17,22 @@ from app.schemas.budget import (
     BudgetLineUpdate,
     BudgetListResponse,
     BudgetResponse,
+    BudgetSectionCreate,
+    BudgetSectionResponse,
+    BudgetSectionUpdate,
     BudgetUpdate,
     BudgetVersionInfo,
     ReorderLinesRequest,
+    ReorderSectionsRequest,
     WorkOrderPreview,
 )
 from app.schemas.company_settings import CompanySettingsResponse, CompanySettingsUpdate
 from app.services.budget import BudgetService
+from app.services.budget_import import (
+    BudgetImportService,
+    ImportLineRow,
+    ImportPreview,
+)
 
 router = APIRouter(tags=["Presupuestos"])
 
@@ -220,3 +231,112 @@ async def reorder_lines(
     budget_id: uuid.UUID, data: ReorderLinesRequest, db: DbSession, _: CurrentUser, tenant_id: CurrentTenantId
 ):
     return await BudgetService(db, tenant_id).reorder_lines(budget_id, data)
+
+
+@router.patch(
+    "/budgets/{budget_id}/lines/{line_id}/section",
+    response_model=BudgetLineInternalResponse,
+)
+async def assign_line_to_section(
+    budget_id: uuid.UUID,
+    line_id: uuid.UUID,
+    data: AssignLineToSectionRequest,
+    db: DbSession,
+    _: CurrentUser,
+    tenant_id: CurrentTenantId,
+):
+    return await BudgetService(db, tenant_id).assign_line_to_section(
+        budget_id, line_id, data
+    )
+
+
+# ── Sections ───────────────────────────────────────────────────────────────────
+
+@router.post(
+    "/budgets/{budget_id}/sections",
+    response_model=BudgetSectionResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_section(
+    budget_id: uuid.UUID,
+    data: BudgetSectionCreate,
+    db: DbSession,
+    _: CurrentUser,
+    tenant_id: CurrentTenantId,
+):
+    return await BudgetService(db, tenant_id).create_section(budget_id, data)
+
+
+@router.patch(
+    "/budgets/{budget_id}/sections/{section_id}",
+    response_model=BudgetSectionResponse,
+)
+async def update_section(
+    budget_id: uuid.UUID,
+    section_id: uuid.UUID,
+    data: BudgetSectionUpdate,
+    db: DbSession,
+    _: CurrentUser,
+    tenant_id: CurrentTenantId,
+):
+    return await BudgetService(db, tenant_id).update_section(budget_id, section_id, data)
+
+
+@router.delete(
+    "/budgets/{budget_id}/sections/{section_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_section(
+    budget_id: uuid.UUID,
+    section_id: uuid.UUID,
+    db: DbSession,
+    _: CurrentUser,
+    tenant_id: CurrentTenantId,
+):
+    await BudgetService(db, tenant_id).delete_section(budget_id, section_id)
+
+
+@router.put(
+    "/budgets/{budget_id}/sections/reorder",
+    response_model=BudgetResponse,
+)
+async def reorder_sections(
+    budget_id: uuid.UUID,
+    data: ReorderSectionsRequest,
+    db: DbSession,
+    _: CurrentUser,
+    tenant_id: CurrentTenantId,
+):
+    return await BudgetService(db, tenant_id).reorder_sections(budget_id, data)
+
+
+# ── Import ─────────────────────────────────────────────────────────────────────
+
+class ConfirmImportRequest(BaseModel):
+    rows: list[ImportLineRow]
+
+
+@router.post("/budgets/{budget_id}/import-lines/preview", response_model=ImportPreview)
+async def preview_import_lines(
+    budget_id: uuid.UUID,
+    db: DbSession,
+    _: CurrentUser,
+    tenant_id: CurrentTenantId,
+    file: UploadFile = File(...),
+):
+    """Parse a CSV/XLSX file and return valid rows + validation errors (no write)."""
+    return await BudgetImportService(db, tenant_id).preview_import(budget_id, file)
+
+
+@router.post("/budgets/{budget_id}/import-lines/confirm")
+async def confirm_import_lines(
+    budget_id: uuid.UUID,
+    data: ConfirmImportRequest,
+    db: DbSession,
+    _: CurrentUser,
+    tenant_id: CurrentTenantId,
+):
+    """Persist the rows previously validated in the preview step."""
+    return await BudgetImportService(db, tenant_id).confirm_import(
+        budget_id, data.rows
+    )

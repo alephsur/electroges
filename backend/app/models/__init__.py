@@ -16,7 +16,12 @@ from app.models.site_visit import (  # noqa: F401
 )
 
 from app.models.company_settings import CompanySettings  # noqa: F401
-from app.models.budget import Budget, BudgetLine  # noqa: F401
+from app.models.budget import Budget, BudgetLine, BudgetSection  # noqa: F401
+from app.models.budget_template import (  # noqa: F401
+    BudgetTemplate,
+    BudgetTemplateLine,
+    BudgetTemplateSection,
+)
 
 from app.models.work_order import (  # noqa: F401
     WorkOrder, Task, TaskMaterial,

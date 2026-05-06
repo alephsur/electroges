@@ -19,6 +19,10 @@ import { MonthlyRevenueChart } from './MonthlyRevenueChart'
 import { AlertsBanner } from './AlertsBanner'
 import { TopCustomersTable } from './TopCustomersTable'
 import { RecentActivityFeed } from './RecentActivityFeed'
+import { WorkOrderProfitabilityWidget } from './WorkOrderProfitabilityWidget'
+import { CashFlowChart } from './CashFlowChart'
+import { TopDebtorsTable } from './TopDebtorsTable'
+import { CustomAlertsPanel } from './CustomAlertsPanel'
 import { formatEur } from '../../../shared/utils/format'
 import type { DateRange } from '../types'
 
@@ -259,6 +263,16 @@ export function DashboardPage() {
                 />
               </div>
             </div>
+
+            {/* ── Row 6: Cash-flow + Morosos + Alertas ─────────────────── */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <CashFlowChart buckets={data.cash_flow_buckets} />
+              <TopDebtorsTable debtors={data.top_debtors} />
+              <CustomAlertsPanel data={data} />
+            </div>
+
+            {/* ── Row 7: Rentabilidad por obra ──────────────────────────── */}
+            <WorkOrderProfitabilityWidget items={data.work_order_profitability} />
           </>
         )}
       </div>

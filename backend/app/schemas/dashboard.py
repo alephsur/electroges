@@ -107,6 +107,35 @@ class RecentActivityPage(BaseModel):
     total_pages: int
 
 
+class WorkOrderProfitabilityItem(BaseModel):
+    work_order_id: str
+    work_order_number: str
+    customer_name: str
+    budgeted_hours: float
+    actual_hours: float
+    budgeted_material_cost: float
+    actual_material_cost: float
+    budgeted_revenue: float
+    total_certified: float        # sum of certification items (issued + invoiced)
+    revenue_base: float           # total_certified if > 0, else budgeted_revenue
+    margin_pct: float | None
+
+
+class CashFlowBucket(BaseModel):
+    bucket: str   # "0_30" | "31_60" | "61_90" | "91_plus"
+    label: str    # "0–30 días", "31–60 días", …
+    amount: float
+    invoice_count: int
+
+
+class TopDebtorCustomer(BaseModel):
+    customer_id: str
+    customer_name: str
+    total_overdue: float
+    invoice_count: int
+    avg_days_overdue: float
+
+
 class DashboardSummary(BaseModel):
     date_from: date
     date_to: date
@@ -121,3 +150,6 @@ class DashboardSummary(BaseModel):
     pending_budgets: list[PendingBudgetItem]
     low_stock_items_count: int
     recent_activity: list[RecentActivityItem]
+    work_order_profitability: list[WorkOrderProfitabilityItem]
+    cash_flow_buckets: list[CashFlowBucket]
+    top_debtors: list[TopDebtorCustomer]

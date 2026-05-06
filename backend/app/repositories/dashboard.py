@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import heapq
 import uuid
 from collections import defaultdict
 from datetime import date, datetime
@@ -13,14 +12,15 @@ from sqlalchemy import String, func, literal, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.budget import Budget, BudgetStatus
+from app.models.budget import Budget, BudgetLineType, BudgetStatus
 from app.models.inventory_item import InventoryItem
 from app.models.invoice import Invoice, InvoiceStatus
 from app.models.purchase_order import PurchaseOrder
 from app.models.site_visit import SiteVisit
-from app.models.work_order import WorkOrder, WorkOrderStatus
+from app.models.work_order import Task, WorkOrder, WorkOrderStatus
 from app.schemas.dashboard import (
     BudgetStats,
+    CashFlowBucket,
     DashboardSummary,
     InvoiceStats,
     MonthlyRevenue,
@@ -31,6 +31,8 @@ from app.schemas.dashboard import (
     RecentActivityPage,
     SiteVisitStats,
     TopCustomer,
+    TopDebtorCustomer,
+    WorkOrderProfitabilityItem,
     WorkOrderStats,
 )
 
@@ -79,6 +81,8 @@ class DashboardRepository:
         all_pending_budgets = await self._load_all_pending_budgets(today)
         low_stock_count = await self._count_low_stock_items()
         recent_activity = await self._load_recent_activity()
+        closed_work_orders = await self._load_closed_work_orders_for_profitability()
+        pending_invoices = await self._load_pending_invoices_for_cashflow(today)
 
         return DashboardSummary(
             date_from=date_from,
@@ -94,6 +98,9 @@ class DashboardRepository:
             pending_budgets=self._build_pending_items(all_pending_budgets, today),
             low_stock_items_count=low_stock_count,
             recent_activity=recent_activity,
+            work_order_profitability=self._compute_work_order_profitability(closed_work_orders),
+            cash_flow_buckets=self._compute_cash_flow_buckets(pending_invoices, today),
+            top_debtors=self._compute_top_debtors(all_overdue_invoices, today),
         )
 
     # ── Data loaders ──────────────────────────────────────────────────────────
@@ -419,6 +426,43 @@ class DashboardRepository:
         result = await self.session.execute(stmt)
         return result.scalar() or 0
 
+    async def _load_closed_work_orders_for_profitability(self, limit: int = 15) -> list[WorkOrder]:
+        """Load recently closed work orders with tasks, materials, certifications and budget."""
+        from sqlalchemy.orm import selectinload as sl
+        from app.models.work_order import Certification, CertificationItem
+
+        stmt = (
+            select(WorkOrder)
+            .options(
+                sl(WorkOrder.customer),
+                sl(WorkOrder.origin_budget).selectinload(Budget.lines),
+                sl(WorkOrder.tasks).selectinload(Task.materials),
+                sl(WorkOrder.certifications).selectinload(Certification.items),
+            )
+            .where(WorkOrder.status == WorkOrderStatus.CLOSED)
+            .order_by(WorkOrder.updated_at.desc())
+            .limit(limit)
+        )
+        result = await self.session.execute(self._tf(WorkOrder, stmt))
+        return list(result.scalars().all())
+
+    async def _load_pending_invoices_for_cashflow(self, today: date) -> list[Invoice]:
+        """Load all SENT non-overdue invoices for cash-flow projection."""
+        stmt = (
+            select(Invoice)
+            .options(
+                selectinload(Invoice.lines),
+                selectinload(Invoice.payments),
+            )
+            .where(
+                Invoice.status == InvoiceStatus.SENT,
+                Invoice.due_date >= today,
+                Invoice.is_rectification.is_(False),
+            )
+        )
+        result = await self.session.execute(self._tf(Invoice, stmt))
+        return list(result.scalars().all())
+
     # ── Stats builders ────────────────────────────────────────────────────────
 
     def _compute_budget_stats(self, budgets: list[Budget], today: date) -> BudgetStats:
@@ -635,3 +679,141 @@ class DashboardRepository:
                 )
             )
         return sorted(items, key=lambda x: x.days_since_sent, reverse=True)
+
+    def _compute_work_order_profitability(
+        self, work_orders: list[WorkOrder]
+    ) -> list[WorkOrderProfitabilityItem]:
+        items = []
+        for wo in work_orders:
+            budget = wo.origin_budget
+            budgeted_hours = Decimal("0")
+            budgeted_material_cost = Decimal("0")
+            budgeted_revenue = Decimal("0")
+
+            if budget and budget.lines:
+                budgeted_revenue = _budget_total(budget)
+                for line in budget.lines:
+                    effective_qty = line.quantity * (1 - line.line_discount_pct / 100)
+                    if line.line_type == BudgetLineType.LABOR:
+                        budgeted_hours += line.quantity
+                    elif line.line_type == BudgetLineType.MATERIAL:
+                        budgeted_material_cost += effective_qty * line.unit_cost
+
+            actual_hours: Decimal = sum(
+                ((t.actual_hours or Decimal("0")) for t in wo.tasks),
+                Decimal("0"),
+            )
+            actual_material_cost: Decimal = sum(
+                (tm.consumed_quantity * tm.unit_cost
+                 for t in wo.tasks
+                 for tm in t.materials),
+                Decimal("0"),
+            )
+
+            total_certified: Decimal = sum(
+                (
+                    ci.amount
+                    for c in wo.certifications
+                    if c.status.value in ("issued", "invoiced")
+                    for ci in c.items
+                ),
+                Decimal("0"),
+            )
+
+            revenue_base = total_certified if total_certified > 0 else budgeted_revenue
+            margin_pct: float | None = None
+            if revenue_base > 0:
+                margin_pct = round(
+                    float((revenue_base - actual_material_cost) / revenue_base * 100), 1
+                )
+
+            items.append(
+                WorkOrderProfitabilityItem(
+                    work_order_id=str(wo.id),
+                    work_order_number=wo.work_order_number,
+                    customer_name=wo.customer.name if wo.customer else "—",
+                    budgeted_hours=float(budgeted_hours.quantize(Decimal("0.01"))),
+                    actual_hours=float(Decimal(str(actual_hours)).quantize(Decimal("0.01"))),
+                    budgeted_material_cost=float(budgeted_material_cost.quantize(Decimal("0.01"))),
+                    actual_material_cost=float(actual_material_cost.quantize(Decimal("0.01"))),
+                    budgeted_revenue=float(budgeted_revenue.quantize(Decimal("0.01"))),
+                    total_certified=float(total_certified.quantize(Decimal("0.01"))),
+                    revenue_base=float(revenue_base.quantize(Decimal("0.01"))),
+                    margin_pct=margin_pct,
+                )
+            )
+        return items
+
+    def _compute_cash_flow_buckets(
+        self, invoices: list[Invoice], today: date
+    ) -> list[CashFlowBucket]:
+        buckets: dict[str, dict] = {
+            "0_30":    {"label": "0–30 días",  "amount": Decimal("0"), "count": 0},
+            "31_60":   {"label": "31–60 días", "amount": Decimal("0"), "count": 0},
+            "61_90":   {"label": "61–90 días", "amount": Decimal("0"), "count": 0},
+            "91_plus": {"label": "+90 días",   "amount": Decimal("0"), "count": 0},
+        }
+        for inv in invoices:
+            total = _invoice_total(inv)
+            collected = _invoice_collected(inv)
+            pending = total - collected
+            if pending <= 0:
+                continue
+            days = (inv.due_date - today).days
+            if days <= 30:
+                key = "0_30"
+            elif days <= 60:
+                key = "31_60"
+            elif days <= 90:
+                key = "61_90"
+            else:
+                key = "91_plus"
+            buckets[key]["amount"] += pending
+            buckets[key]["count"] += 1
+
+        return [
+            CashFlowBucket(
+                bucket=key,
+                label=data["label"],
+                amount=float(data["amount"].quantize(Decimal("0.01"))),
+                invoice_count=data["count"],
+            )
+            for key, data in buckets.items()
+        ]
+
+    def _compute_top_debtors(
+        self, overdue_invoices: list[Invoice], today: date
+    ) -> list[TopDebtorCustomer]:
+        by_customer: dict[str, dict] = {}
+        for inv in overdue_invoices:
+            total = _invoice_total(inv)
+            collected = _invoice_collected(inv)
+            pending = total - collected
+            if pending <= 0:
+                continue
+            cid = str(inv.customer_id)
+            days_overdue = (today - inv.due_date).days
+            if cid not in by_customer:
+                by_customer[cid] = {
+                    "name": inv.customer.name if inv.customer else "—",
+                    "total_overdue": Decimal("0"),
+                    "count": 0,
+                    "days_list": [],
+                }
+            by_customer[cid]["total_overdue"] += pending
+            by_customer[cid]["count"] += 1
+            by_customer[cid]["days_list"].append(days_overdue)
+
+        result = []
+        for cid, data in by_customer.items():
+            avg_days = sum(data["days_list"]) / len(data["days_list"])
+            result.append(
+                TopDebtorCustomer(
+                    customer_id=cid,
+                    customer_name=data["name"],
+                    total_overdue=float(data["total_overdue"].quantize(Decimal("0.01"))),
+                    invoice_count=data["count"],
+                    avg_days_overdue=round(avg_days, 1),
+                )
+            )
+        return sorted(result, key=lambda x: x.total_overdue, reverse=True)[:10]
