@@ -10,8 +10,6 @@ import {
   ShoppingCart,
 } from 'lucide-react'
 import { useDashboardSummary, useRecentActivity } from '../hooks/use-dashboard'
-import { useLowStockAlerts } from '@/features/inventory/hooks/use-inventory-items'
-import { LowStockBadge } from '@/features/inventory/components/LowStockBadge'
 import { DateRangeFilter } from './DateRangeFilter'
 import { KpiCard } from './KpiCard'
 import { StatusBreakdown } from './StatusBreakdown'
@@ -41,7 +39,6 @@ export function DashboardPage() {
 
   const { data, isLoading, isError } = useDashboardSummary(dateRange.from, dateRange.to)
   const { data: activityData, isFetching: activityFetching } = useRecentActivity(activityPage)
-  const { data: lowStockItems } = useLowStockAlerts()
 
   return (
     <div className="h-full overflow-y-auto bg-gray-50">
@@ -65,11 +62,6 @@ export function DashboardPage() {
             }
             lowStockItemsCount={data.low_stock_items_count}
           />
-        )}
-
-        {/* Low stock items panel — only shown when there are items to reorder */}
-        {lowStockItems && lowStockItems.length > 0 && (
-          <LowStockBadge items={lowStockItems} maxItems={5} />
         )}
 
         {isError && (
