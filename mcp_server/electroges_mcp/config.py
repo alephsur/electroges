@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     mcp_transport: str = "stdio"
     mcp_host: str = "0.0.0.0"
     mcp_port: int = 8080
+    # Static Bearer token that protects the SSE endpoint.
+    # Leave empty to disable auth (local stdio mode only).
+    mcp_bearer_token: str = ""
 
 
 settings = Settings()

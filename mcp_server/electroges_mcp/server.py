@@ -22,8 +22,8 @@ luego list_budgets, list_work_orders y list_invoices filtrando por ese customer_
 """
 
 
-def create_server(client: ElectroGesClient) -> FastMCP:
-    mcp = FastMCP("ElectroGes", instructions=_INSTRUCTIONS)
+def create_server(client: ElectroGesClient, host: str = "0.0.0.0", port: int = 8080) -> FastMCP:
+    mcp = FastMCP("ElectroGes", instructions=_INSTRUCTIONS, host=host, port=port)
 
     from .resources import customers as customer_resources
     from .resources import dashboard, inventory as inventory_resources
