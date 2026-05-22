@@ -53,5 +53,24 @@ services:
       BACKEND_INTERNAL_URL: http://backend:8000
     command: npm run dev -- --host
 
+  mcp_server:
+    build:
+      context: ./mcp_server
+      dockerfile: Dockerfile
+    container_name: electroges_mcp
+    environment:
+      ELECTROGES_API_URL: http://backend:8000
+      ELECTROGES_EMAIL: ${MCP_EMAIL:-admin@electroges.dev}
+      ELECTROGES_PASSWORD: ${MCP_PASSWORD:-change_me}
+      MCP_TRANSPORT: sse
+      MCP_HOST: 0.0.0.0
+      MCP_PORT: 8080
+    ports:
+      - "8080:8080"
+    depends_on:
+      - backend
+    profiles:
+      - mcp
+
 volumes:
   postgres_data:

@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import case, func, or_, select
+from sqlalchemy import Integer, case, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -29,14 +29,15 @@ class WorkOrderRepository(BaseRepository[WorkOrder]):
 
     async def get_next_work_order_number(self) -> str:
         year = datetime.now().year
-        stmt = select(func.count(WorkOrder.id)).where(
-            WorkOrder.work_order_number.like(f"OBRA-{year}-%")
-        )
+        prefix = f"OBRA-{year}-"
+        stmt = select(
+            func.max(cast(func.substr(WorkOrder.work_order_number, len(prefix) + 1), Integer))
+        ).where(WorkOrder.work_order_number.like(f"{prefix}%"))
         if self.tenant_id is not None:
             stmt = stmt.where(WorkOrder.tenant_id == self.tenant_id)
         result = await self.session.execute(stmt)
-        count = result.scalar() or 0
-        return f"OBRA-{year}-{(count + 1):04d}"
+        max_num = result.scalar() or 0
+        return f"{prefix}{(int(max_num) + 1):04d}"
 
     async def search(
         self,

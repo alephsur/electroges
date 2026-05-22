@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { X } from 'lucide-react'
+import { X, Search, User, ChevronLeft } from 'lucide-react'
 import { useCustomers } from '@/features/customers/hooks/use-customers'
+import { useCreateCustomer } from '@/features/customers/hooks/use-customers'
+import type { CustomerSummary } from '@/features/customers/types'
 import { useCreateSiteVisit } from '../hooks/use-site-visits'
 import type { SiteVisitCreatePayload } from '../types'
 
@@ -53,13 +55,22 @@ interface SiteVisitFormProps {
 }
 
 export function SiteVisitForm({ onClose }: SiteVisitFormProps) {
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerSummary | null>(null)
   const [customerSearch, setCustomerSearch] = useState('')
   const [showDropdown, setShowDropdown] = useState(false)
+  const [showQuickCreate, setShowQuickCreate] = useState(false)
+  const [quickName, setQuickName] = useState('')
+  const [quickPhone, setQuickPhone] = useState('')
+  const [quickEmail, setQuickEmail] = useState('')
+  const [quickTaxId, setQuickTaxId] = useState('')
+  const searchRef = useRef<HTMLDivElement>(null)
+
   const { data: customersData } = useCustomers({
     q: customerSearch || undefined,
     limit: 10,
   })
   const createVisit = useCreateSiteVisit()
+  const createCustomer = useCreateCustomer()
 
   const {
     register,
@@ -76,7 +87,75 @@ export function SiteVisitForm({ onClose }: SiteVisitFormProps) {
   })
 
   const mode = watch('mode')
-  const selectedCustomerId = watch('customer_id')
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setShowDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const handleSelectCustomer = (customer: CustomerSummary) => {
+    setSelectedCustomer(customer)
+    setCustomerSearch(customer.name)
+    setValue('customer_id', customer.id)
+    setShowDropdown(false)
+  }
+
+  const handleClearCustomer = () => {
+    setSelectedCustomer(null)
+    setCustomerSearch('')
+    setValue('customer_id', null)
+  }
+
+  const handleOpenQuickCreate = () => {
+    setQuickName(customerSearch)
+    setShowDropdown(false)
+    setShowQuickCreate(true)
+  }
+
+  const handleQuickCreate = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!quickName.trim()) return
+    createCustomer.mutate(
+      {
+        customer_type: 'individual',
+        name: quickName.trim(),
+        phone: quickPhone.trim() || null,
+        email: quickEmail.trim() || null,
+        tax_id: quickTaxId.trim() || null,
+      },
+      {
+        onSuccess: (newCustomer) => {
+          setSelectedCustomer(newCustomer as CustomerSummary)
+          setCustomerSearch(newCustomer.name)
+          setValue('customer_id', newCustomer.id)
+          setShowQuickCreate(false)
+          setQuickName('')
+          setQuickPhone('')
+          setQuickEmail('')
+          setQuickTaxId('')
+        },
+      },
+    )
+  }
+
+  const handleCancelQuickCreate = () => {
+    setShowQuickCreate(false)
+    setQuickName('')
+    setQuickPhone('')
+    setQuickEmail('')
+    setQuickTaxId('')
+  }
+
+  const noResults =
+    showDropdown &&
+    !selectedCustomer &&
+    customerSearch.length >= 1 &&
+    customersData?.items.length === 0
 
   const handleFormSubmit = (values: FormValues) => {
     const payload: SiteVisitCreatePayload = {
@@ -138,56 +217,172 @@ export function SiteVisitForm({ onClose }: SiteVisitFormProps) {
 
             {mode === 'customer' ? (
               <div className="space-y-3">
-                <div className="relative">
+                {/* Customer selector with inline quick-create */}
+                <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700">
-                    Buscar cliente
+                    Cliente
+                    <span className="ml-1 text-xs font-normal text-gray-400">(opcional)</span>
                   </label>
-                  <input
-                    type="text"
-                    value={customerSearch}
-                    onChange={(e) => {
-                      setCustomerSearch(e.target.value)
-                      setValue('customer_id', null)
-                      setShowDropdown(true)
-                    }}
-                    onFocus={() => setShowDropdown(true)}
-                    placeholder="Nombre, NIF, email..."
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  {showDropdown && !selectedCustomerId && customersData && customersData.items.length > 0 && (
-                    <div className="absolute z-10 mt-1 max-h-40 w-full divide-y divide-gray-100 overflow-y-auto rounded-md border border-gray-200 bg-white shadow-md">
-                      {customersData.items.map((c) => (
+
+                  {showQuickCreate ? (
+                    <div className="rounded-md border border-gray-200 bg-gray-50 p-4 space-y-3">
+                      <div className="flex items-center gap-2 mb-1">
                         <button
-                          key={c.id}
                           type="button"
-                          onMouseDown={() => {
-                            setValue('customer_id', c.id)
-                            setCustomerSearch(c.name)
-                            setShowDropdown(false)
-                          }}
-                          className="w-full px-3 py-2 text-left text-sm text-gray-900 hover:bg-gray-50"
+                          onClick={handleCancelQuickCreate}
+                          className="text-gray-400 hover:text-gray-600"
                         >
-                          <span className="font-medium">{c.name}</span>
-                          {c.tax_id && (
-                            <span className="ml-2 text-xs text-gray-400">{c.tax_id}</span>
-                          )}
+                          <ChevronLeft size={16} />
                         </button>
-                      ))}
+                        <span className="text-sm font-medium text-gray-700">Nuevo cliente</span>
+                      </div>
+
+                      <div>
+                        <label className="mb-1 block text-sm font-medium text-gray-700">
+                          Nombre <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          value={quickName}
+                          onChange={(e) => setQuickName(e.target.value)}
+                          autoFocus
+                          placeholder="Nombre y apellidos o razón social"
+                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="mb-1 block text-sm font-medium text-gray-700">
+                            Teléfono
+                          </label>
+                          <input
+                            value={quickPhone}
+                            onChange={(e) => setQuickPhone(e.target.value)}
+                            type="tel"
+                            placeholder="600 000 000"
+                            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-sm font-medium text-gray-700">
+                            NIF / CIF
+                          </label>
+                          <input
+                            value={quickTaxId}
+                            onChange={(e) => setQuickTaxId(e.target.value)}
+                            placeholder="12345678A"
+                            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="mb-1 block text-sm font-medium text-gray-700">
+                          Email
+                        </label>
+                        <input
+                          value={quickEmail}
+                          onChange={(e) => setQuickEmail(e.target.value)}
+                          type="email"
+                          placeholder="cliente@ejemplo.com"
+                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+
+                      <div className="flex justify-end gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={handleCancelQuickCreate}
+                          className="rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleQuickCreate}
+                          disabled={createCustomer.isPending || !quickName.trim()}
+                          className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                        >
+                          {createCustomer.isPending ? 'Creando...' : 'Crear cliente'}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div ref={searchRef} className="relative">
+                      {selectedCustomer ? (
+                        <div className="flex items-center justify-between rounded-md border border-blue-400 bg-blue-50 px-3 py-2 text-sm">
+                          <div className="flex items-center gap-2">
+                            <User size={14} className="text-blue-500" />
+                            <span className="font-medium text-blue-800">{selectedCustomer.name}</span>
+                            {selectedCustomer.tax_id && (
+                              <span className="text-xs text-blue-500">{selectedCustomer.tax_id}</span>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleClearCustomer}
+                            className="text-blue-400 hover:text-blue-600"
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <Search
+                            size={14}
+                            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                          />
+                          <input
+                            type="text"
+                            value={customerSearch}
+                            onChange={(e) => {
+                              setCustomerSearch(e.target.value)
+                              setShowDropdown(true)
+                            }}
+                            onFocus={() => setShowDropdown(true)}
+                            placeholder="Buscar cliente por nombre, NIF..."
+                            className="w-full rounded-md border border-gray-300 py-2 pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </>
+                      )}
+
+                      {showDropdown && !selectedCustomer && (
+                        <div className="absolute z-10 mt-1 w-full rounded-md border border-gray-200 bg-white shadow-md">
+                          {customersData && customersData.items.length > 0 ? (
+                            <div className="max-h-40 divide-y divide-gray-100 overflow-y-auto">
+                              {customersData.items.map((c) => (
+                                <button
+                                  key={c.id}
+                                  type="button"
+                                  onMouseDown={() => handleSelectCustomer(c)}
+                                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50"
+                                >
+                                  <User size={13} className="shrink-0 text-gray-400" />
+                                  <span className="font-medium text-gray-900">{c.name}</span>
+                                  {c.tax_id && (
+                                    <span className="ml-auto text-xs text-gray-400">{c.tax_id}</span>
+                                  )}
+                                </button>
+                              ))}
+                            </div>
+                          ) : null}
+
+                          {noResults && (
+                            <button
+                              type="button"
+                              onMouseDown={handleOpenQuickCreate}
+                              className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-blue-600 hover:bg-blue-50"
+                            >
+                              <User size={13} className="shrink-0" />
+                              Crear «{customerSearch}» como nuevo cliente
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
-                  {selectedCustomerId && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setValue('customer_id', null)
-                        setCustomerSearch('')
-                      }}
-                      className="mt-1 text-xs text-blue-600 hover:underline"
-                    >
-                      Cambiar cliente
-                    </button>
-                  )}
                 </div>
+
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700">
                     Dirección <span className="text-red-500">*</span>

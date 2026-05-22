@@ -11,5 +11,12 @@
         ]
       }
     ]
+  },
+  "mcpServers": {
+    "electroges": {
+      "command": "uv",
+      "args": ["run", "python", "main.py"],
+      "cwd": "/home/alephsur/Documents/Projects/EletroGest/electroges/mcp_server"
+    }
   }
 }

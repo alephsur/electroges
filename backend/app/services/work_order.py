@@ -10,6 +10,7 @@ from pathlib import Path
 
 from fastapi import HTTPException, status
 from sqlalchemy import select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.inventory_item import InventoryItem
@@ -105,17 +106,29 @@ class WorkOrderService:
                 detail="Cliente no encontrado",
             )
 
-        work_order_number = await self._repo.get_next_work_order_number()
-        work_order = WorkOrder(
-            work_order_number=work_order_number,
-            customer_id=data.customer_id,
-            origin_budget_id=None,
-            status=WorkOrderStatus.DRAFT,
-            address=data.address,
-            notes=data.notes,
-            tenant_id=self._tenant_id,
-        )
-        work_order = await self._repo.create(work_order)
+        for _attempt in range(3):
+            work_order_number = await self._repo.get_next_work_order_number()
+            work_order = WorkOrder(
+                work_order_number=work_order_number,
+                customer_id=data.customer_id,
+                origin_budget_id=None,
+                status=WorkOrderStatus.DRAFT,
+                address=data.address,
+                notes=data.notes,
+                tenant_id=self._tenant_id,
+            )
+            try:
+                work_order = await self._repo.create(work_order)
+                break
+            except IntegrityError as exc:
+                if "uq_work_order_number" not in str(exc):
+                    raise
+                await self._session.rollback()
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="No se pudo generar un número de obra único. Inténtalo de nuevo.",
+            )
         await self._session.commit()
         logger.info(
             "work_order.created id=%s number=%s (direct)",
@@ -158,17 +171,29 @@ class WorkOrderService:
             )
 
         address = await self._resolve_work_order_address(budget)
-        work_order_number = await self._repo.get_next_work_order_number()
 
-        work_order = WorkOrder(
-            work_order_number=work_order_number,
-            customer_id=budget.customer_id,
-            origin_budget_id=budget_id,
-            status=WorkOrderStatus.DRAFT,
-            address=address,
-            tenant_id=self._tenant_id,
-        )
-        work_order = await self._repo.create(work_order)
+        for _attempt in range(3):
+            work_order_number = await self._repo.get_next_work_order_number()
+            work_order = WorkOrder(
+                work_order_number=work_order_number,
+                customer_id=budget.customer_id,
+                origin_budget_id=budget_id,
+                status=WorkOrderStatus.DRAFT,
+                address=address,
+                tenant_id=self._tenant_id,
+            )
+            try:
+                work_order = await self._repo.create(work_order)
+                break
+            except IntegrityError as exc:
+                if "uq_work_order_number" not in str(exc):
+                    raise
+                await self._session.rollback()
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="No se pudo generar un número de obra único. Inténtalo de nuevo.",
+            )
 
         labor_lines = [l for l in budget.lines if l.line_type.value == "labor"]
         material_lines = [l for l in budget.lines if l.line_type.value == "material"]
@@ -737,7 +762,7 @@ class WorkOrderService:
 
         # Delegate to the PO service — this handles stock movements, PMP and status update.
         # receive_order commits the session internally.
-        po_svc = PurchaseOrderService(self._session)
+        po_svc = PurchaseOrderService(self._session, self._tenant_id)
         received_po = await po_svc.receive_order(purchase_order_id)
 
         # Reload work order (session was committed by receive_order)

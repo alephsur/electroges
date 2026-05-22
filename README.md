@@ -218,39 +218,6 @@ routers → services → repositories → models
 
 La lógica de negocio vive en `services`. El acceso a datos está encapsulado en `repositories`. Los routers solo gestionan HTTP.
 
-### Estructura de carpetas
-
-```
-electroges/
-├── backend/
-│   ├── app/
-│   │   ├── api/v1/routers/   # Un archivo por módulo
-│   │   ├── services/         # Lógica de negocio
-│   │   ├── repositories/     # Acceso a datos
-│   │   ├── models/           # SQLAlchemy 2.0 models
-│   │   ├── schemas/          # Pydantic v2 schemas
-│   │   ├── core/             # Config, seguridad, DB, bootstrap
-│   │   └── utils/
-│   ├── migrations/           # 18 migraciones Alembic
-│   └── tests/
-└── frontend/
-    └── src/
-        ├── features/         # Un directorio por módulo
-        │   ├── auth/
-        │   ├── dashboard/
-        │   ├── customers/
-        │   ├── site-visits/
-        │   ├── budgets/
-        │   ├── work-orders/
-        │   ├── invoicing/
-        │   ├── inventory/
-        │   ├── suppliers/
-        │   └── admin/
-        ├── shared/           # Componentes y hooks reutilizables
-        ├── lib/              # Cliente HTTP, configuración
-        └── types/            # Tipos TypeScript compartidos
-```
-
 ---
 
 ## Multi-tenant
@@ -266,6 +233,67 @@ Superadmin
 
 ---
 
+## MCP Server — Integración con IA
+
+ElectroGes incluye un servidor [Model Context Protocol (MCP)](https://modelcontextprotocol.io) que permite a modelos de IA (Claude, etc.) interactuar con el sistema mediante lenguaje natural.
+
+```
+Claude / Claude Code
+       │
+       │ MCP (stdio o SSE)
+       ▼
+ MCP Server (Python)  ←→  ElectroGes API  ←→  PostgreSQL
+```
+
+**Capacidades expuestas al modelo:**
+- Buscar y analizar clientes con su historial completo
+- Crear visitas técnicas, presupuestos con líneas y obras
+- Gestionar el ciclo de obras: tareas, materiales, estado
+- Crear facturas, registrar cobros y gestionar deuda vencida
+- Consultar inventario y alertas de stock
+
+**Arrancar el MCP server (modo SSE con Docker):**
+
+```bash
+# Añadir en .env
+MCP_EMAIL=admin@electroges.dev
+MCP_PASSWORD=tu_password
+
+docker compose --profile mcp up mcp_server
+# Disponible en http://localhost:8080/sse
+```
+
+**Uso local con Claude Code / Claude Desktop:** ver [`mcp_server/README.md`](./mcp_server/README.md).
+
+---
+
+## Estructura de carpetas
+
+```
+electroges/
+├── backend/
+│   ├── app/
+│   │   ├── api/v1/routers/   # Un archivo por módulo
+│   │   ├── services/         # Lógica de negocio
+│   │   ├── repositories/     # Acceso a datos
+│   │   ├── models/           # SQLAlchemy 2.0 models
+│   │   ├── schemas/          # Pydantic v2 schemas
+│   │   ├── core/             # Config, seguridad, DB, bootstrap
+│   │   └── utils/
+│   ├── migrations/           # 18 migraciones Alembic
+│   └── tests/
+├── frontend/
+│   └── src/
+│       ├── features/         # Un directorio por módulo
+│       ├── shared/           # Componentes y hooks reutilizables
+│       ├── lib/              # Cliente HTTP, configuración
+│       └── types/            # Tipos TypeScript compartidos
+└── mcp_server/               # Servidor MCP para integración con IA
+    └── electroges_mcp/       # Tools, resources y prompts
+```
+
+---
+
 ## Decisiones de arquitectura
 
 | Decisión | Elección | Razón |
@@ -276,3 +304,4 @@ Superadmin
 | ORM | SQLAlchemy async 2.0 | Rendimiento async, tipado moderno |
 | Presupuesto ≠ Factura | Módulos separados | Ciclos de vida distintos |
 | Margen en presupuesto | Solo visible internamente | Nunca expuesto en PDF de cliente |
+| MCP server | Módulo en el mismo repo | Acoplado a la API; mismo ciclo de vida |

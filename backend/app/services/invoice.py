@@ -465,7 +465,7 @@ class InvoiceService:
             )
 
         totals = self._calculate_totals(invoice)
-        if data.amount > totals.pending_amount:
+        if float(data.amount) > totals.pending_amount:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=(
@@ -484,7 +484,7 @@ class InvoiceService:
         )
         self._session.add(payment)
 
-        new_total_paid = totals.total_paid + data.amount
+        new_total_paid = totals.total_paid + float(data.amount)
         if new_total_paid >= totals.total:
             await self._repo.update(invoice, {"status": InvoiceStatus.PAID})
 
