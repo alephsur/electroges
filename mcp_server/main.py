@@ -1,5 +1,10 @@
+import logging
+
 import anyio
 from starlette.types import ASGIApp, Receive, Scope, Send
+
+_diag_log = logging.getLogger("electroges_mcp.auth_diag")
+_diag_log.setLevel(logging.INFO)
 
 from electroges_mcp.client import ElectroGesClient
 from electroges_mcp.config import settings
@@ -70,6 +75,22 @@ class _BearerAuthWrapper:
         if scope["type"] == "http":
             headers = dict(scope.get("headers", []))
             if headers.get(b"authorization") != self._expected:
+                # TEMP DIAGNOSTIC: dump what we actually received vs expected.
+                received = headers.get(b"authorization")
+                ua = headers.get(b"user-agent", b"<none>")
+                path = scope.get("path", "<no-path>")
+                method = scope.get("method", "<no-method>")
+                _diag_log.warning(
+                    "AUTH 401 path=%s method=%s ua=%r received_authorization=%r "
+                    "expected_len=%d received_len=%s all_header_names=%r",
+                    path,
+                    method,
+                    ua,
+                    received,
+                    len(self._expected),
+                    len(received) if received else None,
+                    sorted(headers.keys()),
+                )
                 await send(
                     {
                         "type": "http.response.start",
