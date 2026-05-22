@@ -57,13 +57,35 @@ class _BearerAuthWrapper:
 
 
 def main() -> None:
-    if settings.mcp_transport == "sse":
-        anyio.run(_run_sse)
-    else:
-        mcp.run()
+    match settings.mcp_transport:
+        case "streamable-http":
+            anyio.run(_run_http)
+        case "sse":
+            anyio.run(_run_sse)
+        case _:
+            mcp.run()
+
+
+async def _run_http() -> None:
+    """Streamable HTTP transport — POST to /mcp. Default for remote deployments."""
+    import uvicorn
+
+    app: ASGIApp = mcp.streamable_http_app()
+
+    if settings.mcp_bearer_token:
+        app = _BearerAuthWrapper(app, settings.mcp_bearer_token)
+
+    config = uvicorn.Config(
+        app,
+        host=settings.mcp_host,
+        port=settings.mcp_port,
+        log_level="info",
+    )
+    await uvicorn.Server(config).serve()
 
 
 async def _run_sse() -> None:
+    """Legacy SSE transport — GET to /sse. Use transport: sse in Hermes config."""
     import uvicorn
 
     app: ASGIApp = mcp.sse_app()

@@ -10,7 +10,7 @@ RUN uv sync --no-dev
 COPY . .
 
 ENV PYTHONPATH=/app
-ENV MCP_TRANSPORT=sse
+ENV MCP_TRANSPORT=streamable-http
 ENV MCP_HOST=0.0.0.0
 ENV MCP_PORT=8080
 
