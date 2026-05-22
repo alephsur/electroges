@@ -14,6 +14,42 @@ client = ElectroGesClient(
 mcp = create_server(client, host=settings.mcp_host, port=settings.mcp_port)
 
 
+class _AcceptHeaderNormalizer:
+    """ASGI middleware: ensures incoming HTTP requests advertise both
+    application/json and text/event-stream in their Accept header.
+
+    FastMCP's streamable-http transport rejects (406) requests that don't
+    list both. Some MCP clients (e.g. Hermes Agent) only send
+    application/json, which is technically valid HTTP but trips FastMCP.
+    This wrapper rewrites the header before the request reaches FastMCP.
+    """
+
+    def __init__(self, app: ASGIApp) -> None:
+        self._app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] == "http":
+            headers = list(scope.get("headers", []))
+            rewritten: list[tuple[bytes, bytes]] = []
+            saw_accept = False
+            for name, value in headers:
+                if name == b"accept":
+                    saw_accept = True
+                    parts = {p.strip().split(b";")[0] for p in value.split(b",")}
+                    extras: list[bytes] = []
+                    if b"application/json" not in parts:
+                        extras.append(b"application/json")
+                    if b"text/event-stream" not in parts:
+                        extras.append(b"text/event-stream")
+                    if extras:
+                        value = value + b", " + b", ".join(extras)
+                rewritten.append((name, value))
+            if not saw_accept:
+                rewritten.append((b"accept", b"application/json, text/event-stream"))
+            scope = {**scope, "headers": rewritten}
+        await self._app(scope, receive, send)
+
+
 class _BearerAuthWrapper:
     """ASGI middleware: rejects requests without a valid Bearer token.
 
@@ -71,6 +107,7 @@ async def _run_http() -> None:
     import uvicorn
 
     app: ASGIApp = mcp.streamable_http_app()
+    app = _AcceptHeaderNormalizer(app)
 
     if settings.mcp_bearer_token:
         app = _BearerAuthWrapper(app, settings.mcp_bearer_token)
@@ -89,6 +126,7 @@ async def _run_sse() -> None:
     import uvicorn
 
     app: ASGIApp = mcp.sse_app()
+    app = _AcceptHeaderNormalizer(app)
 
     if settings.mcp_bearer_token:
         app = _BearerAuthWrapper(app, settings.mcp_bearer_token)
