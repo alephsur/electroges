@@ -54,6 +54,7 @@ def make_line(**kwargs) -> MagicMock:
     line_type_mock.value = "labor"
     line.line_type = line_type_mock
     line.sort_order = 0
+    line.section_id = None
     line.description = "Instalación eléctrica"
     line.inventory_item_id = None
     line.inventory_item = None
@@ -1181,16 +1182,17 @@ class TestCalculateTotals:
 
     def test_gross_margin_calculation(self, mock_session):
         svc = self._svc(mock_session)
-        # total = 1210 (from first test), total_cost = 600
-        # gross_margin = 1210 - 600 = 610
-        # gross_margin_pct = 610 / 1210 * 100 ≈ 50.41%
+        # Margin is computed over the taxable base (net revenue), VAT excluded.
+        # taxable_base = 1000, total_cost = 600
+        # gross_margin = 1000 - 600 = 400
+        # gross_margin_pct = 400 / 1000 * 100 = 40%
         line = self._make_line("10", "100.00", "60.00")
         budget = make_budget(tax_rate=Decimal("21.00"), discount_pct=Decimal("0.00"), lines=[line])
 
         totals = svc._calculate_totals(budget)
 
-        assert float(totals.gross_margin) == pytest.approx(610.00)
-        assert float(totals.gross_margin_pct) == pytest.approx(50.41, abs=0.05)
+        assert float(totals.gross_margin) == pytest.approx(400.00)
+        assert float(totals.gross_margin_pct) == pytest.approx(40.00, abs=0.05)
 
     def test_empty_lines_returns_zeros(self, mock_session):
         svc = self._svc(mock_session)
@@ -1205,7 +1207,7 @@ class TestCalculateTotals:
     def test_margin_status_green_above_25(self, mock_session):
         svc = self._svc(mock_session)
         # margin_pct > 25 → green
-        # unit_price=100, unit_cost=50 → total=121, cost=50, margin=71, margin_pct≈58.7%
+        # taxable_base=100, cost=50 → margin=50, margin_pct=50%
         line = self._make_line("1", "100.00", "50.00")
         budget = make_budget(tax_rate=Decimal("21.00"), discount_pct=Decimal("0.00"), lines=[line])
 
@@ -1216,9 +1218,9 @@ class TestCalculateTotals:
     def test_margin_status_amber_between_15_and_25(self, mock_session):
         svc = self._svc(mock_session)
         # We need gross_margin_pct between 15 and 25.
-        # total = 121 (price=100, tax=21%), cost=95
-        # gross_margin = 121-95=26, margin_pct = 26/121 ≈ 21.5% → amber
-        line = self._make_line("1", "100.00", "95.00")
+        # taxable_base=100, cost=80
+        # gross_margin = 100-80=20, margin_pct = 20/100 = 20% → amber
+        line = self._make_line("1", "100.00", "80.00")
         budget = make_budget(tax_rate=Decimal("21.00"), discount_pct=Decimal("0.00"), lines=[line])
 
         totals = svc._calculate_totals(budget)
@@ -1227,8 +1229,8 @@ class TestCalculateTotals:
 
     def test_margin_status_red_below_15(self, mock_session):
         svc = self._svc(mock_session)
-        # total = 121 (price=100, tax=21%), cost=110
-        # gross_margin = 121-110=11, margin_pct = 11/121 ≈ 9.1% → red
+        # taxable_base=100, cost=110
+        # gross_margin = 100-110=-10, margin_pct = -10% → red
         line = self._make_line("1", "100.00", "110.00")
         budget = make_budget(tax_rate=Decimal("21.00"), discount_pct=Decimal("0.00"), lines=[line])
 
@@ -1401,6 +1403,24 @@ class TestBuildLineResponse:
         resp = svc._build_line_response(line)
 
         assert float(resp.margin_amount) == pytest.approx(200.00)
+
+    def test_margin_uses_effective_price_with_line_discount(self, mock_session):
+        svc = self._svc(mock_session)
+        # effective_price = 100 * (1 - 0.20) = 80
+        # margin_pct = (80 - 60) / 80 * 100 = 25%
+        # margin_amount = (80 - 60) * 5 = 100
+        line = make_line(
+            quantity=Decimal("5"),
+            unit_price=Decimal("100.00"),
+            unit_cost=Decimal("60.00"),
+            line_discount_pct=Decimal("20.00"),
+        )
+        line.line_type.value = "labor"
+
+        resp = svc._build_line_response(line)
+
+        assert float(resp.margin_pct) == pytest.approx(25.00)
+        assert float(resp.margin_amount) == pytest.approx(100.00)
 
     def test_internal_response_includes_cost_fields(self, mock_session):
         svc = self._svc(mock_session)

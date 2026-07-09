@@ -92,70 +92,84 @@ function InlineEditForm({ line, budgetId, onClose }: InlineEditFormProps) {
   return (
     <tr className="bg-blue-50">
       <td className="px-3 py-2" colSpan={8}>
-        <div className="grid grid-cols-6 gap-2">
-          <div className="col-span-2">
+        <div className="space-y-2">
+          <div>
+            <label className="block text-xs text-gray-500 mb-0.5">Descripción</label>
             <input
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Descripción"
+              placeholder="Descripción de la línea"
               className="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
-          <input
-            value={quantity}
-            onChange={(e) => setQuantity(e.target.value)}
-            type="number"
-            step="0.001"
-            placeholder="Cant."
-            className="rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-          />
-          <input
-            value={unit}
-            onChange={(e) => setUnit(e.target.value)}
-            placeholder="Ud."
-            className="rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-          />
-          <input
-            value={unitPrice}
-            onChange={(e) => setUnitPrice(e.target.value)}
-            type="number"
-            step="0.0001"
-            placeholder="P.unit."
-            className="rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-          />
-          <input
-            value={unitCost}
-            onChange={(e) => setUnitCost(e.target.value)}
-            type="number"
-            step="0.0001"
-            placeholder="Coste"
-            className="rounded border border-amber-200 bg-amber-50 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-amber-400"
-          />
-        </div>
-        <div className="mt-1 flex gap-1 justify-end">
-          <input
-            value={lineDiscount}
-            onChange={(e) => setLineDiscount(e.target.value)}
-            type="number"
-            step="0.01"
-            min="0"
-            max="100"
-            placeholder="Dto. línea %"
-            className="w-28 rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-          />
-          <button
-            onClick={handleSave}
-            disabled={updateLine.isPending}
-            className="rounded bg-blue-600 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-          >
-            <Check size={13} />
-          </button>
-          <button
-            onClick={onClose}
-            className="rounded border border-gray-300 px-3 py-1 text-xs text-gray-600 hover:bg-gray-50"
-          >
-            <X size={13} />
-          </button>
+          <div className="grid grid-cols-5 gap-2 items-end">
+            <div>
+              <label className="block text-xs text-gray-500 mb-0.5">Cant.</label>
+              <input
+                value={quantity}
+                onChange={(e) => setQuantity(e.target.value)}
+                type="number"
+                step="0.001"
+                className="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-0.5">Ud.</label>
+              <input
+                value={unit}
+                onChange={(e) => setUnit(e.target.value)}
+                placeholder="uds"
+                className="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-0.5">P. venta</label>
+              <input
+                value={unitPrice}
+                onChange={(e) => setUnitPrice(e.target.value)}
+                type="number"
+                step="0.01"
+                className="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-0.5">Dto. %</label>
+              <input
+                value={lineDiscount}
+                onChange={(e) => setLineDiscount(e.target.value)}
+                type="number"
+                step="0.01"
+                min="0"
+                max="100"
+                className="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-amber-600 mb-0.5">Coste</label>
+              <input
+                value={unitCost}
+                onChange={(e) => setUnitCost(e.target.value)}
+                type="number"
+                step="0.01"
+                className="w-full rounded border border-amber-200 bg-amber-50 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-amber-400"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-1">
+            <button
+              onClick={handleSave}
+              disabled={!description.trim() || updateLine.isPending}
+              className="rounded bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            >
+              {updateLine.isPending ? '...' : 'Guardar'}
+            </button>
+            <button
+              onClick={onClose}
+              className="rounded border border-gray-300 px-2 py-1.5 text-xs text-gray-600 hover:bg-gray-50"
+            >
+              <X size={13} />
+            </button>
+          </div>
         </div>
       </td>
     </tr>

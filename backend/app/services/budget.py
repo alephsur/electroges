@@ -841,9 +841,11 @@ class BudgetService:
         taxable_base = subtotal - discount_amount
         tax_amount = taxable_base * (budget.tax_rate / 100)
         total = taxable_base + tax_amount
-        gross_margin = total - total_cost
+        # Margin is computed over net revenue (taxable base): VAT is collected
+        # on behalf of the tax authority and is not part of the margin.
+        gross_margin = taxable_base - total_cost
         gross_margin_pct = (
-            (gross_margin / total * 100) if total > 0 else Decimal("0.0")
+            (gross_margin / taxable_base * 100) if taxable_base > 0 else Decimal("0.0")
         )
 
         if gross_margin_pct < 15:
@@ -990,9 +992,12 @@ class BudgetService:
         subtotal = line.quantity * line.unit_price
         if line.line_discount_pct > 0:
             subtotal *= 1 - line.line_discount_pct / 100
+        # Margin uses the effective (discounted) selling price so it reflects
+        # what the customer actually pays for the line.
+        effective_price = line.unit_price * (1 - line.line_discount_pct / 100)
         margin_pct = (
-            (line.unit_price - line.unit_cost) / line.unit_price * 100
-            if line.unit_price > 0
+            (effective_price - line.unit_cost) / effective_price * 100
+            if effective_price > 0
             else Decimal("0.0")
         )
         return BudgetLineInternalResponse(
@@ -1013,7 +1018,7 @@ class BudgetService:
             unit_cost=line.unit_cost,
             margin_pct=margin_pct.quantize(Decimal("0.01")),
             margin_amount=(
-                (line.unit_price - line.unit_cost) * line.quantity
+                (effective_price - line.unit_cost) * line.quantity
             ).quantize(Decimal("0.01")),
         )
 

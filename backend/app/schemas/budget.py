@@ -83,8 +83,9 @@ class BudgetLineInternalResponse(BudgetLinePublicResponse):
     """Full schema with cost data — only for internal UI."""
 
     unit_cost: float
-    margin_pct: float  # (unit_price - unit_cost) / unit_price * 100
-    margin_amount: float  # (unit_price - unit_cost) * quantity
+    # effective_price = unit_price * (1 - line_discount_pct / 100)
+    margin_pct: float  # (effective_price - unit_cost) / effective_price * 100
+    margin_amount: float  # (effective_price - unit_cost) * quantity
 
 
 # ── Totals ────────────────────────────────────────────────────────────────────
