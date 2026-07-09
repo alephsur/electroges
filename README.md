@@ -177,20 +177,21 @@ npm run dev
 | Multi-tenant | ✅ Completado | Aislamiento completo por tenant |
 | Clientes | ✅ Completado | Ficha, direcciones, documentos, timeline |
 | Visitas Técnicas | ✅ Completado | Notas, materiales estimados, fotos, croquis |
-| Presupuestos | ✅ Completado | Versiones, margen interno, PDF, conversión a obra |
-| Obras + Tareas + Materiales | ✅ Completado | Ciclo completo, control de materiales, albaranes |
+| Presupuestos | ✅ Completado | Capítulos, versiones, margen interno, descuentos, PDF, plantillas, importación CSV/Excel, conversión a obra |
+| Obras + Tareas + Materiales | ✅ Completado | Ciclo completo, control de materiales, certificaciones, albaranes, pedidos de compra vinculados |
 | Facturación | ✅ Completado | Pagos parciales, rectificativas, PDF, recordatorio por email |
 | Inventario | ✅ Completado | Stock, movimientos, alertas de stock mínimo |
 | Proveedores | ✅ Completado | Ficha, artículos, pedidos de compra |
-| Dashboard | ✅ Completado | KPIs, gráficos de facturación, alertas, actividad reciente |
+| Dashboard | ✅ Completado | KPIs, gráficos de facturación, cash-flow, rentabilidad por obra, alertas, actividad reciente |
+| Calendario | ✅ Completado | Eventos manuales con color (adelantado desde Fase 2) |
+| MCP Server | ✅ Completado | Integración con IA vía Model Context Protocol |
 
 ### Fase 2 — Gestión de equipo (diferido)
 
 | Módulo | Estado | Notas |
 |---|---|---|
-| Operarios | ⬜ Diferido | FK preparada en `WorkOrder` desde Fase 1 |
-| Partes de trabajo | ⬜ Diferido | |
-| Calendario | ⬜ Diferido | |
+| Operarios | ⬜ Diferido | FK `assigned_to` preparada en `WorkOrder` desde Fase 1 |
+| Partes de trabajo | ⬜ Diferido | `estimated_hours` / `actual_hours` ya existen en `Task` |
 
 ---
 
@@ -201,9 +202,10 @@ Cliente
   └─→ Visita Técnica
            └─→ Presupuesto (borrador → enviado → aceptado)
                     └─→ Obra (creada automáticamente)
-                             ├── Tareas + Materiales
+                             ├── Tareas + Materiales (consumo ↔ inventario)
+                             ├── Certificaciones parciales (opcional)
                              ├── Albarán de obra
-                             └── Factura → Cobro ✓
+                             └── Factura → Cobro(s) ✓
 ```
 
 ---
@@ -279,9 +281,11 @@ electroges/
 │   │   ├── models/           # SQLAlchemy 2.0 models
 │   │   ├── schemas/          # Pydantic v2 schemas
 │   │   ├── core/             # Config, seguridad, DB, bootstrap
+│   │   ├── templates/        # Plantillas HTML → PDF (presupuesto, factura,
+│   │   │                     #  certificación, albarán)
 │   │   └── utils/
-│   ├── migrations/           # 18 migraciones Alembic
-│   └── tests/
+│   ├── migrations/           # Migraciones Alembic
+│   └── tests/                # Tests unitarios (servicios y schemas)
 ├── frontend/
 │   └── src/
 │       ├── features/         # Un directorio por módulo
